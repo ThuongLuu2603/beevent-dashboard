@@ -1128,12 +1128,7 @@ elif page == "📅 Timeline Dự án":
         else:
             st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
     
-    # TAB 2: Thêm giai đoạn (GIỮ NGUYÊN)
-    with tab2:
-        # ... code thêm giai đoạn như cũ
-
-    
-    # TAB 2: Thêm giai đoạn
+    # TAB 2: Thêm giai đoạn 
     with tab2:
         if len(projects_df) > 0:
             st.subheader("➕ Thêm task/giai đoạn mới")
