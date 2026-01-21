@@ -40,80 +40,97 @@ if client:
         
         st.markdown("---")
         
-        # ==================== FORM 1: DOANH THU THÁNG ====================
-        if data_type == "📊 Doanh thu tháng":
-            st.header("📊 Nhập doanh thu theo tháng")
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                with st.form("revenue_form"):
-                    st.subheader("Thông tin doanh thu")
-                    
-                    month = st.date_input("Tháng:", datetime.now())
-                    noi_bo = st.number_input("Nội bộ (VNĐ):", min_value=0, step=1000000, format="%d")
-                    gov = st.number_input("Gov-Hiệp hội (VNĐ):", min_value=0, step=1000000, format="%d")
-                    corporate = st.number_input("Corporate (VNĐ):", min_value=0, step=1000000, format="%d")
-                    
-                    submitted = st.form_submit_button("💾 Lưu dữ liệu", type="primary")
-                    
-                    if submitted:
-                        try:
-                            worksheet = spreadsheet.worksheet('revenue_monthly')
-                            
-                            new_row = [
-                                month.strftime("%Y-%m-01"),
-                                int(noi_bo),
-                                int(gov),
-                                int(corporate)
-                            ]
-                            
-                            worksheet.append_row(new_row)
-                            st.success("✅ Đã lưu dữ liệu thành công!")
-                            st.balloons()
-                            st.cache_data.clear()
-                            
-                        except Exception as e:
-                            st.error(f"❌ Lỗi: {str(e)}")
-            
-            with col2:
-                st.info(f"""
-                **📊 Tổng cộng:**
-                - Nội bộ: {noi_bo:,.0f} VNĐ
-                - Gov: {gov:,.0f} VNĐ
-                - Corporate: {corporate:,.0f} VNĐ
-                
-                **💰 Tổng: {(noi_bo + gov + corporate):,.0f} VNĐ**
-                """)
-            
-            # Hiển thị dữ liệu hiện tại
-            st.markdown("---")
-            st.subheader("📋 Dữ liệu hiện tại")
-            
+# ==================== FORM 1: DOANH THU THÁNG (SỬA LẠI) ====================
+if data_type == "📊 Doanh thu tháng":
+    st.header("📊 Nhập doanh thu theo tháng")
+    
+    with st.form("revenue_form"):
+        st.subheader("Thông tin doanh thu & chi phí")
+        
+        month = st.date_input("Tháng:", datetime.now())
+        
+        st.markdown("### 💰 Doanh thu theo kênh")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            noi_bo = st.number_input("Nội bộ (VNĐ):", min_value=0, step=1000000, format="%d")
+        with col2:
+            gov = st.number_input("Gov-Hiệp hội (VNĐ):", min_value=0, step=1000000, format="%d")
+        with col3:
+            corporate = st.number_input("Corporate (VNĐ):", min_value=0, step=1000000, format="%d")
+        
+        total_revenue = noi_bo + gov + corporate
+        
+        st.markdown("---")
+        st.markdown("### 💸 Chi phí")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            cogs = st.number_input("Chi phí trực tiếp - COGS (VNĐ):", 
+                                   min_value=0, 
+                                   step=1000000, 
+                                   format="%d",
+                                   help="Chi phí trực tiếp liên quan đến sự kiện")
+        
+        with col2:
+            operating_cost = st.number_input("Chi phí gián tiếp - Operating Cost (VNĐ):", 
+                                             min_value=0, 
+                                             step=1000000, 
+                                             format="%d",
+                                             help="Lương, văn phòng, marketing, khấu hao...")
+        
+        # Tính toán tự động
+        gross_profit = total_revenue - cogs
+        gross_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+        net_profit = gross_profit - operating_cost
+        net_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
+        
+        # Hiển thị tóm tắt
+        st.markdown("---")
+        st.markdown("### 📊 Tóm tắt tài chính")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("💰 Tổng doanh thu", f"{total_revenue/1_000_000:,.0f}M")
+        with col2:
+            st.metric("📈 Lãi gộp", f"{gross_profit/1_000_000:,.0f}M", 
+                     delta=f"{gross_margin:.1f}%")
+        with col3:
+            st.metric("💸 Chi phí gián tiếp", f"{operating_cost/1_000_000:,.0f}M")
+        with col4:
+            st.metric("🎯 Lợi nhuận ròng", f"{net_profit/1_000_000:,.0f}M", 
+                     delta=f"{net_margin:.1f}%",
+                     delta_color="normal" if net_profit >= 0 else "inverse")
+        
+        submitted = st.form_submit_button("💾 Lưu dữ liệu", type="primary")
+        
+        if submitted:
             try:
                 worksheet = spreadsheet.worksheet('revenue_monthly')
-                data = worksheet.get_all_records()
-                df = pd.DataFrame(data)
                 
-                if len(df) > 0:
-                    df['Tổng'] = df['Nội bộ'] + df['Gov-Hiệp hội'] + df['Corporate']
-                    st.dataframe(df, use_container_width=True, height=300)
-                    
-                    # Nút xóa dòng
-                    col1, col2 = st.columns([3, 1])
-                    with col1:
-                        row_to_delete = st.number_input("Xóa dòng số:", min_value=2, max_value=len(df)+1, step=1, key="delete_revenue")
-                    with col2:
-                        if st.button("🗑️ Xóa dòng"):
-                            worksheet.delete_rows(row_to_delete)
-                            st.success(f"✅ Đã xóa dòng {row_to_delete}")
-                            st.cache_data.clear()
-                            st.rerun()
-                else:
-                    st.info("Chưa có dữ liệu")
-                    
+                new_row = [
+                    month.strftime("%Y-%m-01"),
+                    int(noi_bo),
+                    int(gov),
+                    int(corporate),
+                    int(total_revenue),
+                    int(cogs),
+                    int(gross_profit),
+                    float(gross_margin),
+                    int(operating_cost),
+                    int(net_profit),
+                    float(net_margin)
+                ]
+                
+                worksheet.append_row(new_row)
+                st.success("✅ Đã lưu dữ liệu thành công!")
+                st.balloons()
+                st.cache_data.clear()
+                
             except Exception as e:
-                st.error(f"❌ Lỗi load dữ liệu: {str(e)}")
+                st.error(f"❌ Lỗi: {str(e)}")
         
         # ==================== FORM 2: SALES PIPELINE ====================
         elif data_type == "🎯 Sales Pipeline":
