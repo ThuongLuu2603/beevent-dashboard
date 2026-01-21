@@ -706,13 +706,13 @@ elif page == "📝 Quản lý Dự án":
             st.info("Chưa có dữ liệu để thống kê")
 
 # ==================== PAGE 3: TIMELINE DỰ ÁN ====================
-# ==================== PAGE 3: TIMELINE DỰ ÁN (FULL VERSION) ====================
+# ==================== PAGE 3: TIMELINE DỰ ÁN (WITH POPUP MODAL) ====================
 elif page == "📅 Timeline Dự án":
     st.markdown('<div class="main-header">📅 SƠ ĐỒ GANTT</div>', unsafe_allow_html=True)
     
     projects_df = load_projects(sheet)
     timeline_df = load_timeline(sheet)
-    members_df = load_members(sheet)  # Load danh sách nhân sự
+    members_df = load_members(sheet)
     
     tab1, tab2 = st.tabs(["📊 Gantt Chart", "➕ Thêm giai đoạn"])
     
@@ -785,7 +785,7 @@ elif page == "📅 Timeline Dự án":
                 # ============ PHẦN 1: CALENDAR GANTT VISUAL ============
                 st.markdown("### 📅 Biểu đồ Gantt Calendar")
                 
-                # Create CSS (FIXED - tách riêng CSS)
+                # Create CSS
                 css_style = """
                 <style>
                     .gantt-container {
@@ -889,14 +889,12 @@ elif page == "📅 Timeline Dự án":
                 
                 # Add task rows
                 for idx, task in month_timeline.iterrows():
-                    # Task info
                     task_name = task['Giai đoạn']
                     task_status = task['Trạng thái']
                     task_progress = task['Tiến độ %']
                     task_person = task['Phụ trách']
                     task_priority = task.get('Độ ưu tiên', 'Trung bình')
                     
-                    # Status class
                     status_class = {
                         'Chưa bắt đầu': 'status-chua-bat-dau',
                         'Đang thực hiện': 'status-dang-thuc-hien',
@@ -904,7 +902,6 @@ elif page == "📅 Timeline Dự án":
                         'Trễ hạn': 'status-tre-han'
                     }.get(task_status, 'status-chua-bat-dau')
                     
-                    # Priority emoji
                     priority_emoji = {'Cao': '🔴', 'Trung bình': '🟡', 'Thấp': '🟢'}.get(task_priority, '⚪')
                     
                     calendar_html += f"""
@@ -928,7 +925,6 @@ elif page == "📅 Timeline Dự án":
                     for i, day in enumerate(calendar_days):
                         weekend_class = "weekend" if day.weekday() >= 5 else ""
                         
-                        # Check if bar should start here
                         if i == start_col:
                             bar_width = duration * 40 - 4
                             calendar_html += f"""
@@ -941,10 +937,8 @@ elif page == "📅 Timeline Dự án":
                                 </div>
                             """
                         elif start_col < i < start_col + duration:
-                            # Empty cell covered by bar
                             calendar_html += f'<div class="gantt-cell {weekend_class}"></div>'
                         else:
-                            # Empty cell
                             calendar_html += f'<div class="gantt-cell {weekend_class}"></div>'
                     
                     calendar_html += "</div>"
@@ -967,8 +961,8 @@ elif page == "📅 Timeline Dự án":
                 
                 st.markdown("---")
                 
-                # ============ PHẦN 2: DANH SÁCH TASK CÓ THỂ EDIT ============
-                st.markdown("### 📋 Chi tiết Task (Click để chỉnh sửa)")
+                # ============ PHẦN 2: CHI TIẾT TASK (CLICK ĐỂ XEM) ============
+                st.markdown("### 📋 Chi tiết Task (Click để xem)")
                 
                 for idx, task in month_timeline.iterrows():
                     task_id = task['ID']
@@ -980,11 +974,11 @@ elif page == "📅 Timeline Dự án":
                     task_start = task['Ngày bắt đầu']
                     task_end = task['Ngày kết thúc']
                     
-                    # Priority emoji
                     priority_emoji = {'Cao': '🔴', 'Trung bình': '🟡', 'Thấp': '🟢'}.get(task_priority, '⚪')
                     
-                    # Create expander for each task
+                    # Task card (clickable)
                     with st.expander(f"{priority_emoji} **{task_name}** - {task_status} ({task_progress}%)", expanded=False):
+                        # Display info
                         col1, col2 = st.columns([3, 1])
                         
                         with col1:
@@ -994,53 +988,82 @@ elif page == "📅 Timeline Dự án":
                             st.markdown(f"**🎯 Độ ưu tiên:** {task_priority}")
                             if task.get('Mô tả'):
                                 st.markdown(f"**📝 Mô tả:** {task['Mô tả']}")
+                            if task.get('Ghi chú'):
+                                st.markdown(f"**💬 Ghi chú:** {task['Ghi chú']}")
                         
                         with col2:
-                            # Quick update button
-                            if st.button(f"✏️ Sửa", key=f"edit_{task_id}", use_container_width=True):
-                                st.session_state[f'editing_task_{task_id}'] = True
+                            # Button to open edit modal
+                            if st.button(f"✏️ Chỉnh sửa", key=f"btn_edit_{task_id}", use_container_width=True):
+                                st.session_state[f'show_modal_{task_id}'] = True
                                 st.rerun()
-                        
-                        # Edit form (show if editing)
-                        if st.session_state.get(f'editing_task_{task_id}', False):
-                            st.markdown("---")
-                            st.markdown("### ✏️ Chỉnh sửa Task")
+                
+                # ============ PHẦN 3: POPUP MODAL CHỈNH SỬA ============
+                for idx, task in month_timeline.iterrows():
+                    task_id = task['ID']
+                    
+                    # Check if modal should be shown
+                    if st.session_state.get(f'show_modal_{task_id}', False):
+                        # Create modal using dialog
+                        @st.dialog(f"✏️ Chỉnh sửa Task: {task['Giai đoạn']}")
+                        def edit_task_modal():
+                            task_name = task['Giai đoạn']
+                            task_status = task['Trạng thái']
+                            task_progress = task['Tiến độ %']
+                            task_person = task['Phụ trách']
+                            task_priority = task.get('Độ ưu tiên', 'Trung bình')
+                            task_start = task['Ngày bắt đầu']
+                            task_end = task['Ngày kết thúc']
+                            task_desc = task.get('Mô tả', '')
                             
-                            with st.form(f"edit_form_{task_id}"):
+                            with st.form(f"modal_form_{task_id}"):
+                                st.markdown("### 📝 Thông tin cơ bản")
+                                
                                 col1, col2 = st.columns(2)
                                 
                                 with col1:
+                                    new_name = st.text_input("Tên task", value=task_name)
+                                    new_start = st.date_input("Ngày bắt đầu", value=task_start)
                                     new_status = st.selectbox(
                                         "Trạng thái",
                                         ["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Trễ hạn"],
-                                        index=["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Trễ hạn"].index(task_status),
-                                        key=f"status_{task_id}"
+                                        index=["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Trễ hạn"].index(task_status)
                                     )
-                                    new_progress = st.slider("Tiến độ (%)", 0, 100, int(task_progress), key=f"progress_{task_id}")
                                 
                                 with col2:
-                                    new_priority = st.selectbox(
-                                        "Độ ưu tiên",
-                                        ["Cao", "Trung bình", "Thấp"],
-                                        index=["Cao", "Trung bình", "Thấp"].index(task_priority),
-                                        key=f"priority_{task_id}"
-                                    )
-                                    
                                     # Load danh sách nhân sự
                                     if len(members_df) > 0:
                                         member_names = members_df['Họ và tên'].tolist()
                                         current_person_idx = member_names.index(task_person) if task_person in member_names else 0
-                                        new_person = st.selectbox("Phụ trách", member_names, index=current_person_idx, key=f"person_{task_id}")
+                                        new_person = st.selectbox("Phụ trách", member_names, index=current_person_idx)
                                     else:
-                                        new_person = st.text_input("Phụ trách", value=task_person, key=f"person_{task_id}")
+                                        new_person = st.text_input("Phụ trách", value=task_person)
+                                    
+                                    new_end = st.date_input("Ngày kết thúc", value=task_end)
+                                    new_priority = st.selectbox(
+                                        "Độ ưu tiên",
+                                        ["Cao", "Trung bình", "Thấp"],
+                                        index=["Cao", "Trung bình", "Thấp"].index(task_priority)
+                                    )
                                 
-                                new_note = st.text_area("Ghi chú cập nhật", placeholder="Thêm ghi chú về thay đổi...", key=f"note_{task_id}")
+                                new_progress = st.slider("Tiến độ (%)", 0, 100, int(task_progress))
+                                new_desc = st.text_area("Mô tả", value=task_desc, height=100)
+                                new_note = st.text_area("Ghi chú cập nhật", placeholder="Thêm ghi chú về thay đổi...")
                                 
+                                st.markdown("---")
                                 col1, col2 = st.columns(2)
                                 
                                 with col1:
-                                    if st.form_submit_button("💾 Lưu thay đổi", use_container_width=True):
-                                        # Update task in Google Sheets
+                                    submit = st.form_submit_button("💾 Lưu thay đổi", use_container_width=True, type="primary")
+                                
+                                with col2:
+                                    cancel = st.form_submit_button("❌ Hủy", use_container_width=True)
+                                
+                                if submit:
+                                    if not new_name or not new_person:
+                                        st.error("❌ Vui lòng điền đầy đủ thông tin!")
+                                    elif new_end < new_start:
+                                        st.error("❌ Ngày kết thúc phải sau ngày bắt đầu!")
+                                    else:
                                         try:
                                             timeline_sheet = sheet.worksheet("Timeline")
                                             all_data = timeline_sheet.get_all_values()
@@ -1048,29 +1071,35 @@ elif page == "📅 Timeline Dự án":
                                             # Find row to update
                                             for row_idx, row in enumerate(all_data[1:], start=2):
                                                 if row[0] == task_id:
-                                                    # Update columns (adjust column numbers based on your sheet structure)
+                                                    # Update all columns
+                                                    timeline_sheet.update_cell(row_idx, 3, new_name)  # Giai đoạn
+                                                    timeline_sheet.update_cell(row_idx, 4, new_desc)  # Mô tả
+                                                    timeline_sheet.update_cell(row_idx, 5, new_start.strftime("%Y-%m-%d"))  # Ngày bắt đầu
+                                                    timeline_sheet.update_cell(row_idx, 6, new_end.strftime("%Y-%m-%d"))  # Ngày kết thúc
+                                                    timeline_sheet.update_cell(row_idx, 7, new_person)  # Phụ trách
                                                     timeline_sheet.update_cell(row_idx, 8, new_status)  # Trạng thái
                                                     timeline_sheet.update_cell(row_idx, 9, new_progress)  # Tiến độ
                                                     timeline_sheet.update_cell(row_idx, 10, new_priority)  # Độ ưu tiên
-                                                    timeline_sheet.update_cell(row_idx, 7, new_person)  # Phụ trách
                                                     
-                                                    # Add note to existing notes
+                                                    # Add note
                                                     current_note = row[10] if len(row) > 10 else ""
                                                     updated_note = f"{current_note}\n[{datetime.now().strftime('%d/%m/%Y %H:%M')}] {new_note}" if new_note else current_note
                                                     timeline_sheet.update_cell(row_idx, 11, updated_note)
                                                     
                                                     st.success("✅ Cập nhật thành công!")
-                                                    st.session_state[f'editing_task_{task_id}'] = False
+                                                    st.session_state[f'show_modal_{task_id}'] = False
                                                     time.sleep(1)
                                                     st.rerun()
                                                     break
                                         except Exception as e:
                                             st.error(f"❌ Lỗi: {str(e)}")
                                 
-                                with col2:
-                                    if st.form_submit_button("❌ Hủy", use_container_width=True):
-                                        st.session_state[f'editing_task_{task_id}'] = False
-                                        st.rerun()
+                                if cancel:
+                                    st.session_state[f'show_modal_{task_id}'] = False
+                                    st.rerun()
+                        
+                        # Show modal
+                        edit_task_modal()
                 
                 # Summary
                 st.markdown("---")
@@ -1093,7 +1122,7 @@ elif page == "📅 Timeline Dự án":
         else:
             st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
     
-    # TAB 2: Thêm giai đoạn (CẢI TIẾN - LOAD NHÂN SỰ)
+    # TAB 2: Thêm giai đoạn
     with tab2:
         if len(projects_df) > 0:
             st.subheader("➕ Thêm task/giai đoạn mới")
@@ -1112,7 +1141,6 @@ elif page == "📅 Timeline Dự án":
                     mo_ta = st.text_area("Mô tả", placeholder="Mô tả chi tiết công việc...")
                     ngay_bat_dau = st.date_input("Ngày bắt đầu *")
                     
-                    # Load danh sách nhân sự từ Google Sheets
                     if len(members_df) > 0:
                         member_names = members_df['Họ và tên'].tolist()
                         phu_trach = st.selectbox("Phụ trách *", member_names)
