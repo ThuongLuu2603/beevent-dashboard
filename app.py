@@ -694,87 +694,235 @@ elif page == "📅 Timeline Dự án":
     
     tab1, tab2 = st.tabs(["📊 Gantt Chart", "➕ Thêm giai đoạn"])
     
-    # TAB 1: Gantt Chart
+    # TAB 1: Gantt Chart (IMPROVED)
     with tab1:
         if len(projects_df) > 0:
             # Select project
-            selected_project = st.selectbox(
-                "Chọn dự án:",
-                options=projects_df['ID'].tolist(),
-                format_func=lambda x: f"{x} - {projects_df[projects_df['ID']==x]['Tên dự án'].values[0]}"
-            )
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                selected_project = st.selectbox(
+                    "Chọn dự án:",
+                    options=projects_df['ID'].tolist(),
+                    format_func=lambda x: f"{x} - {projects_df[projects_df['ID']==x]['Tên dự án'].values[0]}"
+                )
+            
+            with col2:
+                if st.button("🔄 Làm mới", use_container_width=True):
+                    st.rerun()
             
             # Filter timeline for selected project
-            project_timeline = timeline_df[timeline_df['Project_ID'] == selected_project]
+            project_timeline = timeline_df[timeline_df['Project_ID'] == selected_project].copy()
             
             if len(project_timeline) > 0:
-                # Create Gantt Chart
+                # Convert dates
+                project_timeline['Ngày bắt đầu'] = pd.to_datetime(project_timeline['Ngày bắt đầu'], errors='coerce')
+                project_timeline['Ngày kết thúc'] = pd.to_datetime(project_timeline['Ngày kết thúc'], errors='coerce')
+                
+                # Sort by start date
+                project_timeline = project_timeline.sort_values('Ngày bắt đầu')
+                
+                # Create IMPROVED Gantt Chart
                 fig = go.Figure()
+                
+                # Color mapping for status
+                color_map = {
+                    'Chưa bắt đầu': '#ff6b6b',
+                    'Đang thực hiện': '#51cf66',
+                    'Hoàn thành': '#1f77b4',
+                    'Trễ hạn': '#ff0000'
+                }
                 
                 for idx, row in project_timeline.iterrows():
                     try:
-                        start_date = pd.to_datetime(row['Ngày bắt đầu'])
-                        end_date = pd.to_datetime(row['Ngày kết thúc'])
+                        start_date = row['Ngày bắt đầu']
+                        end_date = row['Ngày kết thúc']
                         
-                        # Color based on status
-                        color_map = {
-                            'Chưa bắt đầu': '#ff6b6b',
-                            'Đang thực hiện': '#51cf66',
-                            'Hoàn thành': '#1f77b4',
-                            'Trễ hạn': '#ff0000'
-                        }
-                        color = color_map.get(row['Trạng thái'], '#gray')
+                        if pd.isna(start_date) or pd.isna(end_date):
+                            continue
                         
+                        duration = (end_date - start_date).days
+                        status = row['Trạng thái']
+                        color = color_map.get(status, '#gray')
+                        progress = row['Tiến độ %']
+                        
+                        # Main bar (full duration)
                         fig.add_trace(go.Bar(
                             name=row['Giai đoạn'],
-                            x=[end_date - start_date],
+                            x=[duration],
                             y=[row['Giai đoạn']],
                             base=start_date,
                             orientation='h',
-                            marker=dict(color=color),
-                            text=f"{row['Tiến độ %']}%",
+                            marker=dict(
+                                color=color,
+                                line=dict(color='white', width=2)
+                            ),
+                            text=f"{progress}%",
                             textposition='inside',
-                            hovertemplate=f"<b>{row['Giai đoạn']}</b><br>" +
-                                        f"Bắt đầu: {start_date.strftime('%d/%m/%Y')}<br>" +
-                                        f"Kết thúc: {end_date.strftime('%d/%m/%Y')}<br>" +
-                                        f"Phụ trách: {row['Phụ trách']}<br>" +
-                                        f"Tiến độ: {row['Tiến độ %']}%<extra></extra>"
+                            textfont=dict(color='white', size=12, family='Arial Black'),
+                            hovertemplate=(
+                                f"<b>{row['Giai đoạn']}</b><br>" +
+                                f"Bắt đầu: {start_date.strftime('%d/%m/%Y')}<br>" +
+                                f"Kết thúc: {end_date.strftime('%d/%m/%Y')}<br>" +
+                                f"Thời gian: {duration} ngày<br>" +
+                                f"Phụ trách: {row['Phụ trách']}<br>" +
+                                f"Tiến độ: {progress}%<br>" +
+                                f"Trạng thái: {status}<extra></extra>"
+                            ),
+                            showlegend=False
                         ))
-                    except:
+                        
+                        # Progress bar overlay (if not 100%)
+                        if progress < 100:
+                            progress_duration = duration * (progress / 100)
+                            fig.add_trace(go.Bar(
+                                x=[progress_duration],
+                                y=[row['Giai đoạn']],
+                                base=start_date,
+                                orientation='h',
+                                marker=dict(
+                                    color=color,
+                                    opacity=1,
+                                    pattern=dict(shape="/", size=8, solidity=0.3)
+                                ),
+                                showlegend=False,
+                                hoverinfo='skip'
+                            ))
+                    except Exception as e:
+                        st.error(f"Lỗi xử lý giai đoạn '{row['Giai đoạn']}': {e}")
                         continue
                 
+                # Add TODAY line
+                today = datetime.now()
+                fig.add_vline(
+                    x=today.timestamp() * 1000,
+                    line_dash="dash",
+                    line_color="red",
+                    line_width=2,
+                    annotation_text="HÔM NAY",
+                    annotation_position="top"
+                )
+                
+                # Update layout
                 fig.update_layout(
-                    title=f"Timeline: {projects_df[projects_df['ID']==selected_project]['Tên dự án'].values[0]}",
-                    xaxis_title="Thời gian",
-                    yaxis_title="Giai đoạn",
-                    height=400,
+                    title=dict(
+                        text=f"<b>Timeline: {projects_df[projects_df['ID']==selected_project]['Tên dự án'].values[0]}</b>",
+                        font=dict(size=20, color='#1f77b4')
+                    ),
+                    xaxis=dict(
+                        title="<b>Thời gian</b>",
+                        type='date',
+                        tickformat='%d/%m/%Y',
+                        showgrid=True,
+                        gridcolor='lightgray'
+                    ),
+                    yaxis=dict(
+                        title="<b>Giai đoạn</b>",
+                        showgrid=True,
+                        gridcolor='lightgray'
+                    ),
+                    height=max(400, len(project_timeline) * 60),
+                    plot_bgcolor='white',
+                    hovermode='closest',
                     showlegend=False,
-                    hovermode='closest'
+                    margin=dict(l=150, r=50, t=80, b=80)
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Timeline details
+                # Legend
+                st.markdown("---")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.markdown("🔴 **Chưa bắt đầu**")
+                with col2:
+                    st.markdown("🟢 **Đang thực hiện**")
+                with col3:
+                    st.markdown("🔵 **Hoàn thành**")
+                with col4:
+                    st.markdown("⚠️ **Trễ hạn**")
+                
+                st.markdown("---")
+                
+                # Timeline details with better UI
                 st.subheader("📋 Chi tiết các giai đoạn")
+                
                 for idx, row in project_timeline.iterrows():
-                    with st.expander(f"⏱️ {row['Giai đoạn']} - {row['Trạng thái']}"):
-                        col1, col2 = st.columns(2)
+                    # Status emoji
+                    status_emoji = {
+                        'Chưa bắt đầu': '⏸️',
+                        'Đang thực hiện': '▶️',
+                        'Hoàn thành': '✅',
+                        'Trễ hạn': '⚠️'
+                    }
+                    emoji = status_emoji.get(row['Trạng thái'], '📌')
+                    
+                    with st.expander(f"{emoji} **{row['Giai đoạn']}** - {row['Trạng thái']} ({row['Tiến độ %']}%)"):
+                        col1, col2, col3 = st.columns(3)
                         
                         with col1:
-                            st.write(f"**Mô tả:** {row['Mô tả']}")
-                            st.write(f"**Phụ trách:** {row['Phụ trách']}")
+                            st.markdown(f"**📝 Mô tả:**")
+                            st.write(row['Mô tả'] if row['Mô tả'] else '_Không có mô tả_')
+                            st.markdown(f"**👤 Phụ trách:** {row['Phụ trách']}")
                         
                         with col2:
-                            st.write(f"**Ngày bắt đầu:** {row['Ngày bắt đầu']}")
-                            st.write(f"**Ngày kết thúc:** {row['Ngày kết thúc']}")
+                            st.markdown(f"**📅 Ngày bắt đầu:**")
+                            st.write(row['Ngày bắt đầu'].strftime('%d/%m/%Y') if pd.notna(row['Ngày bắt đầu']) else 'N/A')
+                            st.markdown(f"**📅 Ngày kết thúc:**")
+                            st.write(row['Ngày kết thúc'].strftime('%d/%m/%Y') if pd.notna(row['Ngày kết thúc']) else 'N/A')
+                        
+                        with col3:
+                            st.markdown(f"**📊 Tiến độ:**")
                             st.progress(int(row['Tiến độ %']) / 100)
-                            st.write(f"**Tiến độ:** {row['Tiến độ %']}%")
+                            st.write(f"{row['Tiến độ %']}%")
+                            
+                            # Check if overdue
+                            if pd.notna(row['Ngày kết thúc']) and row['Ngày kết thúc'] < pd.Timestamp.now() and row['Trạng thái'] != 'Hoàn thành':
+                                days_overdue = (pd.Timestamp.now() - row['Ngày kết thúc']).days
+                                st.error(f"⚠️ Trễ {days_overdue} ngày")
+                        
+                        if row['Ghi chú']:
+                            st.markdown(f"**💬 Ghi chú:** {row['Ghi chú']}")
+                        
+                        # Action buttons
+                        col1, col2 = st.columns([1, 5])
+                        with col1:
+                            if st.button("✏️ Cập nhật tiến độ", key=f"update_{row['ID']}"):
+                                st.info("💡 Tính năng đang phát triển...")
+                
+                # Project summary
+                st.markdown("---")
+                st.subheader("📊 Tổng quan dự án")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    total_phases = len(project_timeline)
+                    st.metric("📋 Tổng giai đoạn", total_phases)
+                
+                with col2:
+                    completed = len(project_timeline[project_timeline['Trạng thái'] == 'Hoàn thành'])
+                    st.metric("✅ Hoàn thành", completed, f"{(completed/total_phases*100):.0f}%")
+                
+                with col3:
+                    in_progress = len(project_timeline[project_timeline['Trạng thái'] == 'Đang thực hiện'])
+                    st.metric("▶️ Đang thực hiện", in_progress)
+                
+                with col4:
+                    avg_progress = project_timeline['Tiến độ %'].mean()
+                    st.metric("📊 Tiến độ TB", f"{avg_progress:.1f}%")
+                
             else:
-                st.info("📭 Dự án này chưa có timeline. Hãy thêm giai đoạn!")
+                st.info("📭 Dự án này chưa có timeline. Hãy thêm giai đoạn ở tab bên cạnh!")
+                
+                # Quick add button
+                if st.button("➕ Thêm giai đoạn đầu tiên", use_container_width=True):
+                    st.session_state['switch_to_add_tab'] = True
+                    st.rerun()
         else:
             st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
     
-    # TAB 2: Thêm giai đoạn
+    # TAB 2: Thêm giai đoạn (GIỮ NGUYÊN)
     with tab2:
         if len(projects_df) > 0:
             st.subheader("➕ Thêm giai đoạn mới")
@@ -806,6 +954,8 @@ elif page == "📅 Timeline Dự án":
                 if submitted:
                     if not giai_doan or not phu_trach:
                         st.error("❌ Vui lòng điền đầy đủ thông tin bắt buộc (*)")
+                    elif ngay_ket_thuc < ngay_bat_dau:
+                        st.error("❌ Ngày kết thúc phải sau ngày bắt đầu!")
                     else:
                         timeline_data = {
                             "ID": "",
@@ -823,7 +973,33 @@ elif page == "📅 Timeline Dự án":
                         
                         if save_timeline(sheet, timeline_data):
                             st.success("✅ Đã thêm giai đoạn thành công!")
+                            st.balloons()
                             st.rerun()
+            
+            # Quick templates
+            st.markdown("---")
+            st.subheader("📝 Template giai đoạn sẵn")
+            
+            templates = {
+                "Event cơ bản": [
+                    {"name": "Khảo sát & Planning", "duration": 7},
+                    {"name": "Chuẩn bị logistics", "duration": 14},
+                    {"name": "Thực hiện sự kiện", "duration": 1},
+                    {"name": "Đánh giá & Báo cáo", "duration": 3}
+                ],
+                "Teambuilding": [
+                    {"name": "Survey địa điểm", "duration": 5},
+                    {"name": "Design chương trình", "duration": 10},
+                    {"name": "Book venue & vendor", "duration": 7},
+                    {"name": "Tổ chức teambuilding", "duration": 2},
+                    {"name": "Post-event report", "duration": 2}
+                ]
+            }
+            
+            selected_template = st.selectbox("Chọn template:", list(templates.keys()))
+            
+            if st.button("📥 Áp dụng template", use_container_width=True):
+                st.info(f"💡 Sẽ tạo {len(templates[selected_template])} giai đoạn cho dự án. Tính năng đang phát triển...")
         else:
             st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
 
