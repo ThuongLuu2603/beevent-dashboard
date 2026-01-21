@@ -220,6 +220,26 @@ def save_timeline(sheet, timeline_data):
     ws.append_row(list(timeline_data.values()))
     return True
 
+def load_members(sheet):
+    """Load danh sách nhân sự từ Google Sheets"""
+    try:
+        members_sheet = sheet.worksheet("Members")
+        data = members_sheet.get_all_values()
+        
+        if len(data) > 1:
+            df = pd.DataFrame(data[1:], columns=data[0])
+            return df
+        else:
+            return pd.DataFrame(columns=['ID', 'Họ và tên', 'Chức vụ', 'Email', 'Số điện thoại'])
+    except:
+        # Nếu chưa có sheet Members, tạo mới
+        try:
+            members_sheet = sheet.add_worksheet(title="Members", rows="100", cols="10")
+            members_sheet.append_row(['ID', 'Họ và tên', 'Chức vụ', 'Email', 'Số điện thoại', 'Ngày vào', 'Trạng thái'])
+            return pd.DataFrame(columns=['ID', 'Họ và tên', 'Chức vụ', 'Email', 'Số điện thoại'])
+        except:
+            return pd.DataFrame(columns=['ID', 'Họ và tên', 'Chức vụ', 'Email', 'Số điện thoại'])
+
 # --- CUSTOMERS ---
 def load_customers(sheet):
     """Load danh sách khách hàng"""
@@ -692,7 +712,9 @@ elif page == "📅 Timeline Dự án":
     
     projects_df = load_projects(sheet)
     timeline_df = load_timeline(sheet)
-    members_df = load_members(sheet)  # Load danh sách nhân sự
+    members_df = load_members(sheet)  # Load từ Google Sheets
+    member_names = members_df['Họ và tên'].tolist()
+    phu_trach = st.selectbox("Phụ trách *", member_names)
     
     tab1, tab2 = st.tabs(["📊 Gantt Chart", "➕ Thêm giai đoạn"])
     
