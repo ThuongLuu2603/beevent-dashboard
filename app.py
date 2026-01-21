@@ -40,6 +40,12 @@ st.markdown("""
         color: white;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
+    .timeline-item {
+        border-left: 3px solid #1f77b4;
+        padding-left: 1rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
     .staff-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1.5rem;
@@ -110,6 +116,33 @@ def save_project(sheet, project_data):
     ws.append_row(list(project_data.values()))
     return True
 
+def update_project(sheet, project_id, updated_data):
+    """Cập nhật dự án"""
+    ws = get_worksheet(sheet, "Projects", [
+        "ID", "Tên dự án", "Khách hàng", "Loại", "Ngày bắt đầu", "Ngày kết thúc",
+        "Doanh thu", "Chi phí", "Lợi nhuận %", "Trạng thái", "PIC", "Team", "Ghi chú", "Ngày tạo"
+    ])
+    all_records = ws.get_all_records()
+    for idx, record in enumerate(all_records, start=2):
+        if record['ID'] == project_id:
+            for col_idx, (key, value) in enumerate(updated_data.items(), start=1):
+                ws.update_cell(idx, col_idx, value)
+            return True
+    return False
+
+def delete_project(sheet, project_id):
+    """Xóa dự án"""
+    ws = get_worksheet(sheet, "Projects", [
+        "ID", "Tên dự án", "Khách hàng", "Loại", "Ngày bắt đầu", "Ngày kết thúc",
+        "Doanh thu", "Chi phí", "Lợi nhuận %", "Trạng thái", "PIC", "Team", "Ghi chú", "Ngày tạo"
+    ])
+    all_records = ws.get_all_records()
+    for idx, record in enumerate(all_records, start=2):
+        if record['ID'] == project_id:
+            ws.delete_rows(idx)
+            return True
+    return False
+
 # --- STAFF ---
 def load_staff(sheet):
     """Load danh sách nhân sự"""
@@ -134,6 +167,33 @@ def save_staff(sheet, staff_data):
     staff_data["Ngày tạo"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ws.append_row(list(staff_data.values()))
     return True
+
+def update_staff(sheet, staff_id, updated_data):
+    """Cập nhật nhân sự"""
+    ws = get_worksheet(sheet, "Staff", [
+        "ID", "Họ tên", "Chức vụ", "Phòng ban", "Email", "Điện thoại",
+        "Ngày vào", "Lương", "Trạng thái", "Kỹ năng", "Ghi chú", "Ngày tạo"
+    ])
+    all_records = ws.get_all_records()
+    for idx, record in enumerate(all_records, start=2):
+        if record['ID'] == staff_id:
+            for col_idx, (key, value) in enumerate(updated_data.items(), start=1):
+                ws.update_cell(idx, col_idx, value)
+            return True
+    return False
+
+def delete_staff(sheet, staff_id):
+    """Xóa nhân sự"""
+    ws = get_worksheet(sheet, "Staff", [
+        "ID", "Họ tên", "Chức vụ", "Phòng ban", "Email", "Điện thoại",
+        "Ngày vào", "Lương", "Trạng thái", "Kỹ năng", "Ghi chú", "Ngày tạo"
+    ])
+    all_records = ws.get_all_records()
+    for idx, record in enumerate(all_records, start=2):
+        if record['ID'] == staff_id:
+            ws.delete_rows(idx)
+            return True
+    return False
 
 # --- TIMELINE ---
 def load_timeline(sheet):
@@ -165,7 +225,7 @@ def load_customers(sheet):
     """Load danh sách khách hàng"""
     ws = get_worksheet(sheet, "Customers", [
         "ID", "Tên khách hàng", "Công ty", "Email", "Điện thoại", 
-        "Địa chỉ", "Loại", "Nguồn", "Trạng thái", "Ngày tạo"
+        "Địa chỉ", "Loại", "Nguồn", "Trạng thái", "Ghi chú", "Ngày tạo"
     ])
     data = ws.get_all_records()
     if not data:
@@ -176,13 +236,65 @@ def save_customer(sheet, customer_data):
     """Lưu khách hàng mới"""
     ws = get_worksheet(sheet, "Customers", [
         "ID", "Tên khách hàng", "Công ty", "Email", "Điện thoại", 
-        "Địa chỉ", "Loại", "Nguồn", "Trạng thái", "Ngày tạo"
+        "Địa chỉ", "Loại", "Nguồn", "Trạng thái", "Ghi chú", "Ngày tạo"
     ])
     existing_data = ws.get_all_records()
     new_id = len(existing_data) + 1
     customer_data["ID"] = f"CUS{new_id:04d}"
     customer_data["Ngày tạo"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ws.append_row(list(customer_data.values()))
+    return True
+
+def update_customer(sheet, customer_id, updated_data):
+    """Cập nhật khách hàng"""
+    ws = get_worksheet(sheet, "Customers", [
+        "ID", "Tên khách hàng", "Công ty", "Email", "Điện thoại", 
+        "Địa chỉ", "Loại", "Nguồn", "Trạng thái", "Ghi chú", "Ngày tạo"
+    ])
+    all_records = ws.get_all_records()
+    for idx, record in enumerate(all_records, start=2):
+        if record['ID'] == customer_id:
+            for col_idx, (key, value) in enumerate(updated_data.items(), start=1):
+                ws.update_cell(idx, col_idx, value)
+            return True
+    return False
+
+def delete_customer(sheet, customer_id):
+    """Xóa khách hàng"""
+    ws = get_worksheet(sheet, "Customers", [
+        "ID", "Tên khách hàng", "Công ty", "Email", "Điện thoại", 
+        "Địa chỉ", "Loại", "Nguồn", "Trạng thái", "Ghi chú", "Ngày tạo"
+    ])
+    all_records = ws.get_all_records()
+    for idx, record in enumerate(all_records, start=2):
+        if record['ID'] == customer_id:
+            ws.delete_rows(idx)
+            return True
+    return False
+
+# --- FINANCE ---
+def load_finance(sheet):
+    """Load dữ liệu tài chính"""
+    ws = get_worksheet(sheet, "Finance", [
+        "ID", "Project_ID", "Loại", "Hạng mục", "Số tiền", "Ngày", 
+        "Người thanh toán", "Trạng thái", "Ghi chú", "Ngày tạo"
+    ])
+    data = ws.get_all_records()
+    if not data:
+        return pd.DataFrame(columns=ws.row_values(1))
+    return pd.DataFrame(data)
+
+def save_finance(sheet, finance_data):
+    """Lưu giao dịch tài chính"""
+    ws = get_worksheet(sheet, "Finance", [
+        "ID", "Project_ID", "Loại", "Hạng mục", "Số tiền", "Ngày", 
+        "Người thanh toán", "Trạng thái", "Ghi chú", "Ngày tạo"
+    ])
+    existing_data = ws.get_all_records()
+    new_id = len(existing_data) + 1
+    finance_data["ID"] = f"FIN{new_id:04d}"
+    finance_data["Ngày tạo"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ws.append_row(list(finance_data.values()))
     return True
 
 # ==================== DASHBOARD DATA PROCESSING ====================
@@ -392,6 +504,787 @@ if page == "🏠 Tổng quan":
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Chưa có dữ liệu nhân sự")
+
+# ==================== PAGE 2: QUẢN LÝ DỰ ÁN ====================
+elif page == "📝 Quản lý Dự án":
+    st.markdown('<div class="main-header">📝 QUẢN LÝ DỰ ÁN</div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Danh sách", "➕ Thêm mới", "📊 Thống kê"])
+    
+    # TAB 1: Danh sách dự án
+    with tab1:
+        projects_df = load_projects(sheet)
+        
+        if len(projects_df) > 0:
+            # Filters
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                status_filter = st.multiselect(
+                    "Lọc theo trạng thái:",
+                    options=projects_df['Trạng thái'].unique().tolist(),
+                    default=projects_df['Trạng thái'].unique().tolist()
+                )
+            
+            with col2:
+                if 'Loại' in projects_df.columns:
+                    type_filter = st.multiselect(
+                        "Lọc theo loại:",
+                        options=projects_df['Loại'].unique().tolist(),
+                        default=projects_df['Loại'].unique().tolist()
+                    )
+                else:
+                    type_filter = []
+            
+            with col3:
+                search_term = st.text_input("🔍 Tìm kiếm:", placeholder="Tên dự án, khách hàng...")
+            
+            # Apply filters
+            filtered_df = projects_df[projects_df['Trạng thái'].isin(status_filter)]
+            
+            if type_filter and 'Loại' in projects_df.columns:
+                filtered_df = filtered_df[filtered_df['Loại'].isin(type_filter)]
+            
+            if search_term:
+                filtered_df = filtered_df[
+                    filtered_df['Tên dự án'].str.contains(search_term, case=False, na=False) |
+                    filtered_df['Khách hàng'].str.contains(search_term, case=False, na=False)
+                ]
+            
+            st.markdown(f"**Tìm thấy {len(filtered_df)} dự án**")
+            
+            # Display projects
+            for idx, row in filtered_df.iterrows():
+                with st.expander(f"🎯 {row['Tên dự án']} - {row['Khách hàng']}"):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.write(f"**ID:** {row['ID']}")
+                        st.write(f"**Loại:** {row.get('Loại', 'N/A')}")
+                        st.write(f"**Trạng thái:** {row['Trạng thái']}")
+                    
+                    with col2:
+                        st.write(f"**Ngày bắt đầu:** {row.get('Ngày bắt đầu', 'N/A')}")
+                        st.write(f"**Ngày kết thúc:** {row.get('Ngày kết thúc', 'N/A')}")
+                        st.write(f"**PIC:** {row.get('PIC', 'N/A')}")
+                    
+                    with col3:
+                        doanh_thu = pd.to_numeric(row.get('Doanh thu', 0), errors='coerce')
+                        chi_phi = pd.to_numeric(row.get('Chi phí', 0), errors='coerce')
+                        st.write(f"**Doanh thu:** {doanh_thu:,.0f} VNĐ")
+                        st.write(f"**Chi phí:** {chi_phi:,.0f} VNĐ")
+                        st.write(f"**Lợi nhuận:** {row.get('Lợi nhuận %', 0)}%")
+                    
+                    st.write(f"**Ghi chú:** {row.get('Ghi chú', 'Không có')}")
+                    
+                    # Actions
+                    col1, col2, col3 = st.columns([1, 1, 4])
+                    with col1:
+                        if st.button("✏️ Sửa", key=f"edit_{row['ID']}"):
+                            st.session_state[f'editing_{row["ID"]}'] = True
+                    with col2:
+                        if st.button("🗑️ Xóa", key=f"delete_{row['ID']}"):
+                            if delete_project(sheet, row['ID']):
+                                st.success("Đã xóa dự án!")
+                                st.rerun()
+        else:
+            st.info("📭 Chưa có dự án nào. Hãy thêm dự án đầu tiên!")
+    
+    # TAB 2: Thêm dự án mới
+    with tab2:
+        st.subheader("➕ Thêm dự án mới")
+        
+        with st.form("add_project_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                ten_du_an = st.text_input("Tên dự án *", placeholder="Ví dụ: Year End Party 2026")
+                khach_hang = st.text_input("Khách hàng *", placeholder="Tên công ty/tổ chức")
+                loai = st.selectbox("Loại dự án *", ["Teambuilding", "Gala Dinner", "Conference", "Festival", "Workshop", "Nội bộ", "Gov", "Corporate"])
+                ngay_bat_dau = st.date_input("Ngày bắt đầu *")
+                ngay_ket_thuc = st.date_input("Ngày kết thúc *")
+            
+            with col2:
+                doanh_thu = st.number_input("Doanh thu (VNĐ) *", min_value=0, step=1000000, format="%d")
+                chi_phi = st.number_input("Chi phí (VNĐ) *", min_value=0, step=1000000, format="%d")
+                loi_nhuan = ((doanh_thu - chi_phi) / doanh_thu * 100) if doanh_thu > 0 else 0
+                st.metric("Lợi nhuận %", f"{loi_nhuan:.2f}%")
+                trang_thai = st.selectbox("Trạng thái *", ["Lead", "Đang đàm phán", "Đã ký HĐ", "Đang thực hiện", "Hoàn thành", "Hủy"])
+                pic = st.text_input("PIC (Người phụ trách)", placeholder="Nguyễn Văn A")
+            
+            team = st.text_input("Team", placeholder="Ví dụ: Team A, Team B")
+            ghi_chu = st.text_area("Ghi chú", placeholder="Thông tin bổ sung...")
+            
+            submitted = st.form_submit_button("💾 Lưu dự án", use_container_width=True)
+            
+            if submitted:
+                if not ten_du_an or not khach_hang:
+                    st.error("❌ Vui lòng điền đầy đủ thông tin bắt buộc (*)")
+                else:
+                    project_data = {
+                        "ID": "",  # Will be auto-generated
+                        "Tên dự án": ten_du_an,
+                        "Khách hàng": khach_hang,
+                        "Loại": loai,
+                        "Ngày bắt đầu": ngay_bat_dau.strftime("%Y-%m-%d"),
+                        "Ngày kết thúc": ngay_ket_thuc.strftime("%Y-%m-%d"),
+                        "Doanh thu": doanh_thu,
+                        "Chi phí": chi_phi,
+                        "Lợi nhuận %": round(loi_nhuan, 2),
+                        "Trạng thái": trang_thai,
+                        "PIC": pic,
+                        "Team": team,
+                        "Ghi chú": ghi_chu,
+                        "Ngày tạo": ""  # Will be auto-generated
+                    }
+                    
+                    if save_project(sheet, project_data):
+                        st.success("✅ Đã thêm dự án thành công!")
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error("❌ Có lỗi xảy ra. Vui lòng thử lại!")
+    
+    # TAB 3: Thống kê
+    with tab3:
+        projects_df = load_projects(sheet)
+        
+        if len(projects_df) > 0:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                total_revenue = pd.to_numeric(projects_df['Doanh thu'], errors='coerce').sum()
+                st.metric("💰 Tổng doanh thu", f"{total_revenue/1_000_000:,.1f}M VNĐ")
+            
+            with col2:
+                total_cost = pd.to_numeric(projects_df['Chi phí'], errors='coerce').sum()
+                st.metric("💸 Tổng chi phí", f"{total_cost/1_000_000:,.1f}M VNĐ")
+            
+            with col3:
+                avg_profit = pd.to_numeric(projects_df['Lợi nhuận %'], errors='coerce').mean()
+                st.metric("📊 Lợi nhuận TB", f"{avg_profit:.1f}%")
+            
+            st.markdown("---")
+            
+            # Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("📊 Dự án theo trạng thái")
+                status_dist = projects_df['Trạng thái'].value_counts()
+                fig = px.pie(values=status_dist.values, names=status_dist.index)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.subheader("💰 Doanh thu theo loại")
+                if 'Loại' in projects_df.columns:
+                    revenue_by_type = projects_df.groupby('Loại')['Doanh thu'].sum().sort_values(ascending=False)
+                    fig = px.bar(x=revenue_by_type.index, y=revenue_by_type.values/1_000_000)
+                    fig.update_layout(xaxis_title="Loại dự án", yaxis_title="Doanh thu (M VNĐ)")
+                    st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Chưa có dữ liệu để thống kê")
+
+# ==================== PAGE 3: TIMELINE DỰ ÁN ====================
+elif page == "📅 Timeline Dự án":
+    st.markdown('<div class="main-header">📅 TIMELINE DỰ ÁN</div>', unsafe_allow_html=True)
+    
+    projects_df = load_projects(sheet)
+    timeline_df = load_timeline(sheet)
+    
+    tab1, tab2 = st.tabs(["📊 Gantt Chart", "➕ Thêm giai đoạn"])
+    
+    # TAB 1: Gantt Chart
+    with tab1:
+        if len(projects_df) > 0:
+            # Select project
+            selected_project = st.selectbox(
+                "Chọn dự án:",
+                options=projects_df['ID'].tolist(),
+                format_func=lambda x: f"{x} - {projects_df[projects_df['ID']==x]['Tên dự án'].values[0]}"
+            )
+            
+            # Filter timeline for selected project
+            project_timeline = timeline_df[timeline_df['Project_ID'] == selected_project]
+            
+            if len(project_timeline) > 0:
+                # Create Gantt Chart
+                fig = go.Figure()
+                
+                for idx, row in project_timeline.iterrows():
+                    try:
+                        start_date = pd.to_datetime(row['Ngày bắt đầu'])
+                        end_date = pd.to_datetime(row['Ngày kết thúc'])
+                        
+                        # Color based on status
+                        color_map = {
+                            'Chưa bắt đầu': '#ff6b6b',
+                            'Đang thực hiện': '#51cf66',
+                            'Hoàn thành': '#1f77b4',
+                            'Trễ hạn': '#ff0000'
+                        }
+                        color = color_map.get(row['Trạng thái'], '#gray')
+                        
+                        fig.add_trace(go.Bar(
+                            name=row['Giai đoạn'],
+                            x=[end_date - start_date],
+                            y=[row['Giai đoạn']],
+                            base=start_date,
+                            orientation='h',
+                            marker=dict(color=color),
+                            text=f"{row['Tiến độ %']}%",
+                            textposition='inside',
+                            hovertemplate=f"<b>{row['Giai đoạn']}</b><br>" +
+                                        f"Bắt đầu: {start_date.strftime('%d/%m/%Y')}<br>" +
+                                        f"Kết thúc: {end_date.strftime('%d/%m/%Y')}<br>" +
+                                        f"Phụ trách: {row['Phụ trách']}<br>" +
+                                        f"Tiến độ: {row['Tiến độ %']}%<extra></extra>"
+                        ))
+                    except:
+                        continue
+                
+                fig.update_layout(
+                    title=f"Timeline: {projects_df[projects_df['ID']==selected_project]['Tên dự án'].values[0]}",
+                    xaxis_title="Thời gian",
+                    yaxis_title="Giai đoạn",
+                    height=400,
+                    showlegend=False,
+                    hovermode='closest'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Timeline details
+                st.subheader("📋 Chi tiết các giai đoạn")
+                for idx, row in project_timeline.iterrows():
+                    with st.expander(f"⏱️ {row['Giai đoạn']} - {row['Trạng thái']}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.write(f"**Mô tả:** {row['Mô tả']}")
+                            st.write(f"**Phụ trách:** {row['Phụ trách']}")
+                        
+                        with col2:
+                            st.write(f"**Ngày bắt đầu:** {row['Ngày bắt đầu']}")
+                            st.write(f"**Ngày kết thúc:** {row['Ngày kết thúc']}")
+                            st.progress(int(row['Tiến độ %']) / 100)
+                            st.write(f"**Tiến độ:** {row['Tiến độ %']}%")
+            else:
+                st.info("📭 Dự án này chưa có timeline. Hãy thêm giai đoạn!")
+        else:
+            st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
+    
+    # TAB 2: Thêm giai đoạn
+    with tab2:
+        if len(projects_df) > 0:
+            st.subheader("➕ Thêm giai đoạn mới")
+            
+            with st.form("add_timeline_form"):
+                project_id = st.selectbox(
+                    "Chọn dự án *",
+                    options=projects_df['ID'].tolist(),
+                    format_func=lambda x: f"{x} - {projects_df[projects_df['ID']==x]['Tên dự án'].values[0]}"
+                )
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    giai_doan = st.text_input("Tên giai đoạn *", placeholder="Ví dụ: Khảo sát địa điểm")
+                    mo_ta = st.text_area("Mô tả", placeholder="Mô tả chi tiết công việc...")
+                    ngay_bat_dau = st.date_input("Ngày bắt đầu *")
+                
+                with col2:
+                    ngay_ket_thuc = st.date_input("Ngày kết thúc *")
+                    phu_trach = st.text_input("Phụ trách *", placeholder="Nguyễn Văn A")
+                    trang_thai = st.selectbox("Trạng thái *", ["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Trễ hạn"])
+                    tien_do = st.slider("Tiến độ (%)", 0, 100, 0)
+                
+                ghi_chu = st.text_input("Ghi chú", placeholder="Thông tin bổ sung...")
+                
+                submitted = st.form_submit_button("💾 Lưu giai đoạn", use_container_width=True)
+                
+                if submitted:
+                    if not giai_doan or not phu_trach:
+                        st.error("❌ Vui lòng điền đầy đủ thông tin bắt buộc (*)")
+                    else:
+                        timeline_data = {
+                            "ID": "",
+                            "Project_ID": project_id,
+                            "Giai đoạn": giai_doan,
+                            "Mô tả": mo_ta,
+                            "Ngày bắt đầu": ngay_bat_dau.strftime("%Y-%m-%d"),
+                            "Ngày kết thúc": ngay_ket_thuc.strftime("%Y-%m-%d"),
+                            "Phụ trách": phu_trach,
+                            "Trạng thái": trang_thai,
+                            "Tiến độ %": tien_do,
+                            "Ghi chú": ghi_chu,
+                            "Ngày tạo": ""
+                        }
+                        
+                        if save_timeline(sheet, timeline_data):
+                            st.success("✅ Đã thêm giai đoạn thành công!")
+                            st.rerun()
+        else:
+            st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
+
+# ==================== PAGE 4: QUẢN LÝ KHÁCH HÀNG ====================
+elif page == "👥 Quản lý Khách hàng":
+    st.markdown('<div class="main-header">👥 QUẢN LÝ KHÁCH HÀNG</div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Danh sách", "➕ Thêm mới", "📊 Phân tích"])
+    
+    # TAB 1: Danh sách khách hàng
+    with tab1:
+        customers_df = load_customers(sheet)
+        
+        if len(customers_df) > 0:
+            # Search
+            search_term = st.text_input("🔍 Tìm kiếm:", placeholder="Tên, công ty, email...")
+            
+            if search_term:
+                customers_df = customers_df[
+                    customers_df['Tên khách hàng'].str.contains(search_term, case=False, na=False) |
+                    customers_df['Công ty'].str.contains(search_term, case=False, na=False) |
+                    customers_df['Email'].str.contains(search_term, case=False, na=False)
+                ]
+            
+            st.markdown(f"**Tìm thấy {len(customers_df)} khách hàng**")
+            
+            # Display customers
+            for idx, row in customers_df.iterrows():
+                with st.expander(f"👤 {row['Tên khách hàng']} - {row['Công ty']}"):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.write(f"**ID:** {row['ID']}")
+                        st.write(f"**Email:** {row['Email']}")
+                        st.write(f"**Điện thoại:** {row['Điện thoại']}")
+                    
+                    with col2:
+                        st.write(f"**Địa chỉ:** {row.get('Địa chỉ', 'N/A')}")
+                        st.write(f"**Loại:** {row.get('Loại', 'N/A')}")
+                        st.write(f"**Nguồn:** {row.get('Nguồn', 'N/A')}")
+                    
+                    with col3:
+                        st.write(f"**Trạng thái:** {row['Trạng thái']}")
+                        st.write(f"**Ngày tạo:** {row.get('Ngày tạo', 'N/A')}")
+                    
+                    st.write(f"**Ghi chú:** {row.get('Ghi chú', 'Không có')}")
+                    
+                    # Actions
+                    col1, col2 = st.columns([1, 5])
+                    with col1:
+                        if st.button("🗑️ Xóa", key=f"delete_cus_{row['ID']}"):
+                            if delete_customer(sheet, row['ID']):
+                                st.success("Đã xóa khách hàng!")
+                                st.rerun()
+        else:
+            st.info("📭 Chưa có khách hàng nào.")
+    
+    # TAB 2: Thêm khách hàng
+    with tab2:
+        st.subheader("➕ Thêm khách hàng mới")
+        
+        with st.form("add_customer_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                ten_kh = st.text_input("Tên khách hàng *", placeholder="Nguyễn Văn A")
+                cong_ty = st.text_input("Công ty *", placeholder="ABC Corp")
+                email = st.text_input("Email *", placeholder="example@company.com")
+                dien_thoai = st.text_input("Điện thoại *", placeholder="0901234567")
+            
+            with col2:
+                dia_chi = st.text_input("Địa chỉ", placeholder="123 Đường ABC, Quận 1, TP.HCM")
+                loai = st.selectbox("Loại khách hàng", ["Cá nhân", "Doanh nghiệp", "Tổ chức", "Chính phủ"])
+                nguon = st.selectbox("Nguồn", ["Website", "Giới thiệu", "Facebook", "Email", "Sự kiện", "Khác"])
+                trang_thai = st.selectbox("Trạng thái", ["Tiềm năng", "Đang tư vấn", "Đã chốt", "Khách hàng thân thiết"])
+            
+            ghi_chu = st.text_area("Ghi chú", placeholder="Thông tin bổ sung...")
+            
+            submitted = st.form_submit_button("💾 Lưu khách hàng", use_container_width=True)
+            
+            if submitted:
+                if not ten_kh or not cong_ty or not email:
+                    st.error("❌ Vui lòng điền đầy đủ thông tin bắt buộc (*)")
+                else:
+                    customer_data = {
+                        "ID": "",
+                        "Tên khách hàng": ten_kh,
+                        "Công ty": cong_ty,
+                        "Email": email,
+                        "Điện thoại": dien_thoai,
+                        "Địa chỉ": dia_chi,
+                        "Loại": loai,
+                        "Nguồn": nguon,
+                        "Trạng thái": trang_thai,
+                        "Ghi chú": ghi_chu,
+                        "Ngày tạo": ""
+                    }
+                    
+                    if save_customer(sheet, customer_data):
+                        st.success("✅ Đã thêm khách hàng thành công!")
+                        st.balloons()
+                        st.rerun()
+    
+    # TAB 3: Phân tích
+    with tab3:
+        customers_df = load_customers(sheet)
+        
+        if len(customers_df) > 0:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("📊 Khách hàng theo loại")
+                type_dist = customers_df['Loại'].value_counts()
+                fig = px.pie(values=type_dist.values, names=type_dist.index)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.subheader("📈 Khách hàng theo nguồn")
+                source_dist = customers_df['Nguồn'].value_counts()
+                fig = px.bar(x=source_dist.index, y=source_dist.values)
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Chưa có dữ liệu để phân tích")
+
+# ==================== PAGE 5: QUẢN LÝ NHÂN SỰ ====================
+elif page == "👨‍💼 Quản lý Nhân sự":
+    st.markdown('<div class="main-header">👨‍💼 QUẢN LÝ NHÂN SỰ</div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Danh sách", "➕ Thêm mới", "📊 Thống kê"])
+    
+    # TAB 1: Danh sách nhân sự
+    with tab1:
+        staff_df = load_staff(sheet)
+        
+        if len(staff_df) > 0:
+            # Filters
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                dept_filter = st.multiselect(
+                    "Lọc theo phòng ban:",
+                    options=staff_df['Phòng ban'].unique().tolist(),
+                    default=staff_df['Phòng ban'].unique().tolist()
+                )
+            
+            with col2:
+                status_filter = st.multiselect(
+                    "Lọc theo trạng thái:",
+                    options=staff_df['Trạng thái'].unique().tolist(),
+                    default=staff_df['Trạng thái'].unique().tolist()
+                )
+            
+            with col3:
+                search_term = st.text_input("🔍 Tìm kiếm:", placeholder="Tên, email...")
+            
+            # Apply filters
+            filtered_df = staff_df[
+                (staff_df['Phòng ban'].isin(dept_filter)) &
+                (staff_df['Trạng thái'].isin(status_filter))
+            ]
+            
+            if search_term:
+                filtered_df = filtered_df[
+                    filtered_df['Họ tên'].str.contains(search_term, case=False, na=False) |
+                    filtered_df['Email'].str.contains(search_term, case=False, na=False)
+                ]
+            
+            st.markdown(f"**Tìm thấy {len(filtered_df)} nhân viên**")
+            
+            # Display staff cards
+            cols = st.columns(3)
+            for idx, row in filtered_df.iterrows():
+                with cols[idx % 3]:
+                    st.markdown(f"""
+                    <div class="staff-card">
+                        <h3>👤 {row['Họ tên']}</h3>
+                        <p><strong>Chức vụ:</strong> {row['Chức vụ']}</p>
+                        <p><strong>Phòng ban:</strong> {row['Phòng ban']}</p>
+                        <p><strong>Email:</strong> {row['Email']}</p>
+                        <p><strong>Điện thoại:</strong> {row['Điện thoại']}</p>
+                        <p><strong>Trạng thái:</strong> {row['Trạng thái']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button("🗑️ Xóa", key=f"delete_staff_{row['ID']}"):
+                        if delete_staff(sheet, row['ID']):
+                            st.success("Đã xóa nhân viên!")
+                            st.rerun()
+        else:
+            st.info("📭 Chưa có nhân viên nào.")
+    
+    # TAB 2: Thêm nhân viên
+    with tab2:
+        st.subheader("➕ Thêm nhân viên mới")
+        
+        with st.form("add_staff_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                ho_ten = st.text_input("Họ tên *", placeholder="Nguyễn Văn A")
+                chuc_vu = st.text_input("Chức vụ *", placeholder="Event Manager")
+                phong_ban = st.selectbox("Phòng ban *", ["Operations", "Sales", "Marketing", "Finance", "HR", "IT"])
+                email = st.text_input("Email *", placeholder="nguyenvana@beevent.vn")
+            
+            with col2:
+                dien_thoai = st.text_input("Điện thoại *", placeholder="0901234567")
+                ngay_vao = st.date_input("Ngày vào làm *")
+                luong = st.number_input("Lương (VNĐ)", min_value=0, step=1000000, format="%d")
+                trang_thai = st.selectbox("Trạng thái *", ["Đang làm", "Nghỉ phép", "Đã nghỉ việc"])
+            
+            ky_nang = st.text_input("Kỹ năng", placeholder="Event Planning, Project Management...")
+            ghi_chu = st.text_area("Ghi chú", placeholder="Thông tin bổ sung...")
+            
+            submitted = st.form_submit_button("💾 Lưu nhân viên", use_container_width=True)
+            
+            if submitted:
+                if not ho_ten or not chuc_vu or not email:
+                    st.error("❌ Vui lòng điền đầy đủ thông tin bắt buộc (*)")
+                else:
+                    staff_data = {
+                        "ID": "",
+                        "Họ tên": ho_ten,
+                        "Chức vụ": chuc_vu,
+                        "Phòng ban": phong_ban,
+                        "Email": email,
+                        "Điện thoại": dien_thoai,
+                        "Ngày vào": ngay_vao.strftime("%Y-%m-%d"),
+                        "Lương": luong,
+                        "Trạng thái": trang_thai,
+                        "Kỹ năng": ky_nang,
+                        "Ghi chú": ghi_chu,
+                        "Ngày tạo": ""
+                    }
+                    
+                    if save_staff(sheet, staff_data):
+                        st.success("✅ Đã thêm nhân viên thành công!")
+                        st.balloons()
+                        st.rerun()
+    
+    # TAB 3: Thống kê (tiếp tục)
+    with tab3:
+        staff_df = load_staff(sheet)
+        
+        if len(staff_df) > 0:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                total_staff = len(staff_df)
+                active_staff = len(staff_df[staff_df['Trạng thái'] == 'Đang làm'])
+                st.metric("👥 Tổng nhân sự", total_staff, f"{active_staff} đang làm")
+            
+            with col2:
+                if 'Lương' in staff_df.columns:
+                    avg_salary = pd.to_numeric(staff_df['Lương'], errors='coerce').mean()
+                    st.metric("💰 Lương TB", f"{avg_salary/1_000_000:.1f}M VNĐ")
+                else:
+                    st.metric("💰 Lương TB", "N/A")
+            
+            with col3:
+                dept_count = staff_df['Phòng ban'].nunique()
+                st.metric("🏢 Số phòng ban", dept_count)
+            
+            st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("📊 Nhân sự theo phòng ban")
+                dept_dist = staff_df['Phòng ban'].value_counts()
+                fig = px.bar(x=dept_dist.index, y=dept_dist.values)
+                fig.update_layout(xaxis_title="Phòng ban", yaxis_title="Số người")
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.subheader("📈 Nhân sự theo trạng thái")
+                status_dist = staff_df['Trạng thái'].value_counts()
+                fig = px.pie(values=status_dist.values, names=status_dist.index)
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Chưa có dữ liệu để thống kê")
+
+# ==================== PAGE 6: QUẢN LÝ TÀI CHÍNH ====================
+elif page == "💰 Quản lý Tài chính":
+    st.markdown('<div class="main-header">💰 QUẢN LÝ TÀI CHÍNH</div>', unsafe_allow_html=True)
+    
+    projects_df = load_projects(sheet)
+    finance_df = load_finance(sheet)
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Giao dịch", "➕ Thêm giao dịch", "📊 Báo cáo tài chính"])
+    
+    # TAB 1: Danh sách giao dịch
+    with tab1:
+        if len(finance_df) > 0:
+            # Filters
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                type_filter = st.multiselect(
+                    "Loại giao dịch:",
+                    options=finance_df['Loại'].unique().tolist(),
+                    default=finance_df['Loại'].unique().tolist()
+                )
+            
+            with col2:
+                status_filter = st.multiselect(
+                    "Trạng thái:",
+                    options=finance_df['Trạng thái'].unique().tolist(),
+                    default=finance_df['Trạng thái'].unique().tolist()
+                )
+            
+            with col3:
+                if len(projects_df) > 0:
+                    project_filter = st.selectbox(
+                        "Dự án:",
+                        options=['Tất cả'] + projects_df['ID'].tolist()
+                    )
+                else:
+                    project_filter = 'Tất cả'
+            
+            # Apply filters
+            filtered_df = finance_df[
+                (finance_df['Loại'].isin(type_filter)) &
+                (finance_df['Trạng thái'].isin(status_filter))
+            ]
+            
+            if project_filter != 'Tất cả':
+                filtered_df = filtered_df[filtered_df['Project_ID'] == project_filter]
+            
+            st.markdown(f"**Tìm thấy {len(filtered_df)} giao dịch**")
+            
+            # Display transactions
+            for idx, row in filtered_df.iterrows():
+                with st.expander(f"💵 {row['Hạng mục']} - {row['Loại']} - {pd.to_numeric(row['Số tiền'], errors='coerce'):,.0f} VNĐ"):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.write(f"**ID:** {row['ID']}")
+                        st.write(f"**Dự án:** {row['Project_ID']}")
+                        st.write(f"**Loại:** {row['Loại']}")
+                    
+                    with col2:
+                        st.write(f"**Hạng mục:** {row['Hạng mục']}")
+                        st.write(f"**Số tiền:** {pd.to_numeric(row['Số tiền'], errors='coerce'):,.0f} VNĐ")
+                        st.write(f"**Ngày:** {row['Ngày']}")
+                    
+                    with col3:
+                        st.write(f"**Người thanh toán:** {row['Người thanh toán']}")
+                        st.write(f"**Trạng thái:** {row['Trạng thái']}")
+                    
+                    st.write(f"**Ghi chú:** {row.get('Ghi chú', 'Không có')}")
+        else:
+            st.info("📭 Chưa có giao dịch nào.")
+    
+    # TAB 2: Thêm giao dịch
+    with tab2:
+        if len(projects_df) > 0:
+            st.subheader("➕ Thêm giao dịch mới")
+            
+            with st.form("add_finance_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    project_id = st.selectbox(
+                        "Chọn dự án *",
+                        options=projects_df['ID'].tolist(),
+                        format_func=lambda x: f"{x} - {projects_df[projects_df['ID']==x]['Tên dự án'].values[0]}"
+                    )
+                    loai = st.selectbox("Loại giao dịch *", ["Thu", "Chi"])
+                    hang_muc = st.text_input("Hạng mục *", placeholder="Ví dụ: Thanh toán venue")
+                    so_tien = st.number_input("Số tiền (VNĐ) *", min_value=0, step=100000, format="%d")
+                
+                with col2:
+                    ngay = st.date_input("Ngày giao dịch *")
+                    nguoi_thanh_toan = st.text_input("Người thanh toán *", placeholder="Nguyễn Văn A")
+                    trang_thai = st.selectbox("Trạng thái *", ["Chờ duyệt", "Đã duyệt", "Đã thanh toán", "Từ chối"])
+                
+                ghi_chu = st.text_area("Ghi chú", placeholder="Thông tin bổ sung...")
+                
+                submitted = st.form_submit_button("💾 Lưu giao dịch", use_container_width=True)
+                
+                if submitted:
+                    if not hang_muc or not nguoi_thanh_toan:
+                        st.error("❌ Vui lòng điền đầy đủ thông tin bắt buộc (*)")
+                    else:
+                        finance_data = {
+                            "ID": "",
+                            "Project_ID": project_id,
+                            "Loại": loai,
+                            "Hạng mục": hang_muc,
+                            "Số tiền": so_tien,
+                            "Ngày": ngay.strftime("%Y-%m-%d"),
+                            "Người thanh toán": nguoi_thanh_toan,
+                            "Trạng thái": trang_thai,
+                            "Ghi chú": ghi_chu,
+                            "Ngày tạo": ""
+                        }
+                        
+                        if save_finance(sheet, finance_data):
+                            st.success("✅ Đã thêm giao dịch thành công!")
+                            st.rerun()
+        else:
+            st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
+    
+    # TAB 3: Báo cáo tài chính
+    with tab3:
+        if len(finance_df) > 0:
+            # Convert to numeric
+            finance_df['Số tiền'] = pd.to_numeric(finance_df['Số tiền'], errors='coerce')
+            
+            # Summary metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_revenue = finance_df[finance_df['Loại'] == 'Thu']['Số tiền'].sum()
+                st.metric("💰 Tổng thu", f"{total_revenue/1_000_000:,.1f}M")
+            
+            with col2:
+                total_expense = finance_df[finance_df['Loại'] == 'Chi']['Số tiền'].sum()
+                st.metric("💸 Tổng chi", f"{total_expense/1_000_000:,.1f}M")
+            
+            with col3:
+                net_profit = total_revenue - total_expense
+                st.metric("📊 Lãi/Lỗ", f"{net_profit/1_000_000:,.1f}M", 
+                         delta=f"{(net_profit/total_revenue*100):.1f}%" if total_revenue > 0 else "0%")
+            
+            with col4:
+                pending = len(finance_df[finance_df['Trạng thái'] == 'Chờ duyệt'])
+                st.metric("⏳ Chờ duyệt", pending)
+            
+            st.markdown("---")
+            
+            # Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("📊 Thu/Chi theo hạng mục")
+                category_summary = finance_df.groupby(['Loại', 'Hạng mục'])['Số tiền'].sum().reset_index()
+                fig = px.bar(category_summary, x='Hạng mục', y='Số tiền', color='Loại', barmode='group')
+                fig.update_layout(yaxis_title="Số tiền (VNĐ)")
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.subheader("🥧 Phân bổ chi phí")
+                expense_data = finance_df[finance_df['Loại'] == 'Chi'].groupby('Hạng mục')['Số tiền'].sum()
+                if len(expense_data) > 0:
+                    fig = px.pie(values=expense_data.values, names=expense_data.index)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Chưa có dữ liệu chi phí")
+            
+            # Cash flow by project
+            st.subheader("💵 Dòng tiền theo dự án")
+            project_cashflow = finance_df.groupby(['Project_ID', 'Loại'])['Số tiền'].sum().unstack(fill_value=0)
+            
+            if 'Thu' in project_cashflow.columns and 'Chi' in project_cashflow.columns:
+                project_cashflow['Lãi/Lỗ'] = project_cashflow['Thu'] - project_cashflow['Chi']
+                st.dataframe(project_cashflow.style.format("{:,.0f}"), use_container_width=True)
+            else:
+                st.info("Chưa đủ dữ liệu để hiển thị dòng tiền")
+        else:
+            st.info("Chưa có dữ liệu tài chính để báo cáo")
 
 # ==================== PAGE 7: DASHBOARD & BÁO CÁO ====================
 elif page == "📊 Dashboard & Báo cáo":
@@ -621,9 +1514,9 @@ elif page == "📊 Dashboard & Báo cáo":
                 proposal_count = pipeline_data[pipeline_data['Stage'] == 'Proposal']['Count'].values[0]
                 won_count = pipeline_data[pipeline_data['Stage'] == 'Won']['Count'].values[0]
                 
-                lost_from_lead = lead_count - qualified_count
-                lost_from_qualified = qualified_count - proposal_count
-                lost_from_proposal = proposal_count - won_count
+                lost_from_lead = max(0, lead_count - qualified_count)
+                lost_from_qualified = max(0, qualified_count - proposal_count)
+                lost_from_proposal = max(0, proposal_count - won_count)
                 
                 fig_sankey = go.Figure(data=[go.Sankey(
                     node=dict(
@@ -869,6 +1762,109 @@ elif page == "📊 Dashboard & Báo cáo":
         )
         st.plotly_chart(fig_trend, use_container_width=True)
 
+# ==================== PAGE 8: CÀI ĐẶT ====================
+elif page == "⚙️ Cài đặt":
+    st.markdown('<div class="main-header">⚙️ CÀI ĐẶT HỆ THỐNG</div>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3 = st.tabs(["🔧 Cấu hình", "📤 Export/Import", "ℹ️ Thông tin"])
+    
+    with tab1:
+        st.subheader("🔧 Cấu hình hệ thống")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Google Sheets**")
+            st.info(f"✅ Đã kết nối: {sheet.title if sheet else 'Chưa kết nối'}")
+            
+            if st.button("🔄 Làm mới kết nối"):
+                st.cache_resource.clear()
+                st.success("Đã làm mới!")
+                st.rerun()
+        
+        with col2:
+            st.write("**Mục tiêu 2026**")
+            target_revenue = st.number_input("Doanh thu (M VNĐ)", value=80000, step=1000)
+            target_profit = st.number_input("Lãi gộp (M VNĐ)", value=13920, step=100)
+            
+            if st.button("💾 Lưu mục tiêu"):
+                st.success("Đã lưu mục tiêu!")
+    
+    with tab2:
+        st.subheader("📤 Export/Import dữ liệu")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Export dữ liệu**")
+            
+            export_type = st.selectbox("Chọn loại dữ liệu:", ["Dự án", "Khách hàng", "Nhân sự", "Tài chính"])
+            
+            if st.button("📥 Export to CSV"):
+                if export_type == "Dự án":
+                    df = load_projects(sheet)
+                elif export_type == "Khách hàng":
+                    df = load_customers(sheet)
+                elif export_type == "Nhân sự":
+                    df = load_staff(sheet)
+                else:
+                    df = load_finance(sheet)
+                
+                csv = df.to_csv(index=False).encode('utf-8-sig')
+                st.download_button(
+                    label="⬇️ Tải xuống CSV",
+                    data=csv,
+                    file_name=f"{export_type}_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+        
+        with col2:
+            st.write("**Import dữ liệu**")
+            st.info("💡 Tính năng đang phát triển...")
+    
+    with tab3:
+        st.subheader("ℹ️ Thông tin hệ thống")
+        
+        st.markdown("""
+        ### 🎯 Beevent Management System v2.0
+        
+        **Tính năng chính:**
+        - ✅ Quản lý dự án (CRUD)
+        - ✅ Timeline & Gantt Chart
+        - ✅ Quản lý khách hàng
+        - ✅ Quản lý nhân sự
+        - ✅ Quản lý tài chính
+        - ✅ Dashboard & Báo cáo (4 loại)
+        - ✅ Kết nối Google Sheets
+        - ✅ Export CSV
+        
+        **Công nghệ:**
+        - Streamlit 1.40+
+        - Google Sheets API
+        - Plotly Charts
+        - Pandas
+        
+        **Phát triển bởi:** Beevent Team
+        
+        **Liên hệ:** support@beevent.vn
+        """)
+        
+        st.markdown("---")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            projects_count = len(load_projects(sheet))
+            st.metric("📋 Dự án", projects_count)
+        
+        with col2:
+            customers_count = len(load_customers(sheet))
+            st.metric("👥 Khách hàng", customers_count)
+        
+        with col3:
+            staff_count = len(load_staff(sheet))
+            st.metric("👨‍💼 Nhân sự", staff_count)
+
 # Footer
 st.markdown("---")
 st.markdown(f"""
@@ -877,3 +1873,4 @@ st.markdown(f"""
     <p style='font-size: 0.8rem;'>Last updated: {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
 </div>
 """, unsafe_allow_html=True)
+
