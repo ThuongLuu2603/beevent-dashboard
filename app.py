@@ -5,7 +5,6 @@ import plotly.express as px
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
-import json
 
 # Page config
 st.set_page_config(
@@ -34,6 +33,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==================== GOOGLE SHEETS CONNECTION ====================
+SHEET_ID = "1xSvsEPHV1MzHa9UumzJtyzAY4LXaiSVKb8tmMcUZPeM"
+
 @st.cache_resource
 def init_gsheet_connection():
     """Initialize Google Sheets connection"""
@@ -41,7 +42,6 @@ def init_gsheet_connection():
         # Lấy credentials từ Streamlit secrets
         credentials_dict = st.secrets["gcp_service_account"]
         
-        # Tạo credentials object
         scopes = [
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive'
@@ -52,38 +52,54 @@ def init_gsheet_connection():
             scopes=scopes
         )
         
-        # Kết nối gspread
         client = gspread.authorize(credentials)
-        
         return client
     except Exception as e:
         st.error(f"❌ Lỗi kết nối Google Sheets: {str(e)}")
         return None
 
-@st.cache_data(ttl=300)  # Cache 5 phút
-def load_data_from_sheets(_client, sheet_id):
+@st.cache_data(ttl=60)  # Cache 1 phút
+def load_data_from_sheets(_client):
     """Load all data from Google Sheets"""
     try:
-        # Mở spreadsheet
-        spreadsheet = _client.open_by_key(sheet_id)
+        spreadsheet = _client.open_by_key(SHEET_ID)
         
         # Load revenue data
-        revenue_sheet = spreadsheet.worksheet('revenue_monthly')
-        revenue_data = pd.DataFrame(revenue_sheet.get_all_records())
-        revenue_data['Tháng'] = pd.to_datetime(revenue_data['Tháng'])
-        revenue_data['Tổng DT'] = revenue_data['Nội bộ'] + revenue_data['Gov-Hiệp hội'] + revenue_data['Corporate']
+        try:
+            revenue_sheet = spreadsheet.worksheet('revenue_monthly')
+            revenue_records = revenue_sheet.get_all_records()
+            if revenue_records:
+                revenue_data = pd.DataFrame(revenue_records)
+                revenue_data['Tháng'] = pd.to_datetime(revenue_data['Tháng'])
+                revenue_data['Tổng DT'] = revenue_data['Nội bộ'] + revenue_data['Gov-Hiệp hội'] + revenue_data['Corporate']
+            else:
+                revenue_data = pd.DataFrame(columns=['Tháng', 'Nội bộ', 'Gov-Hiệp hội', 'Corporate', 'Tổng DT'])
+        except:
+            revenue_data = pd.DataFrame(columns=['Tháng', 'Nội bộ', 'Gov-Hiệp hội', 'Corporate', 'Tổng DT'])
         
         # Load pipeline data
-        pipeline_sheet = spreadsheet.worksheet('sales_pipeline')
-        pipeline_data = pd.DataFrame(pipeline_sheet.get_all_records())
+        try:
+            pipeline_sheet = spreadsheet.worksheet('sales_pipeline')
+            pipeline_records = pipeline_sheet.get_all_records()
+            pipeline_data = pd.DataFrame(pipeline_records) if pipeline_records else pd.DataFrame(columns=['Stage', 'Count', 'Value'])
+        except:
+            pipeline_data = pd.DataFrame(columns=['Stage', 'Count', 'Value'])
         
         # Load projects data
-        projects_sheet = spreadsheet.worksheet('projects')
-        projects = pd.DataFrame(projects_sheet.get_all_records())
+        try:
+            projects_sheet = spreadsheet.worksheet('projects')
+            projects_records = projects_sheet.get_all_records()
+            projects = pd.DataFrame(projects_records) if projects_records else pd.DataFrame(columns=['Dự án', 'Doanh thu', 'Lợi nhuận %', 'Khách', 'Loại', 'CSAT'])
+        except:
+            projects = pd.DataFrame(columns=['Dự án', 'Doanh thu', 'Lợi nhuận %', 'Khách', 'Loại', 'CSAT'])
         
         # Load sales performance
-        sales_sheet = spreadsheet.worksheet('sales_performance')
-        sales_perf = pd.DataFrame(sales_sheet.get_all_records())
+        try:
+            sales_sheet = spreadsheet.worksheet('sales_performance')
+            sales_records = sales_sheet.get_all_records()
+            sales_perf = pd.DataFrame(sales_records) if sales_records else pd.DataFrame(columns=['Nhân viên', 'Doanh thu', 'Số deal', 'Conversion %', 'Kênh'])
+        except:
+            sales_perf = pd.DataFrame(columns=['Nhân viên', 'Doanh thu', 'Số deal', 'Conversion %', 'Kênh'])
         
         return revenue_data, pipeline_data, projects, sales_perf
     
@@ -93,72 +109,54 @@ def load_data_from_sheets(_client, sheet_id):
 
 # ==================== MAIN APP ====================
 
-# Sidebar - Connection Setup
+# Sidebar
 st.sidebar.title("📊 BEEVENT DASHBOARD")
 st.sidebar.markdown("---")
 
-# Google Sheet ID input
-if 'sheet_id' not in st.session_state:
-    st.session_state.sheet_id = ""
+# Connect to Google Sheets
+client = init_gsheet_connection()
 
-sheet_id = st.sidebar.text_input(
-    "🔗 Google Sheet ID:",
-    value=st.session_state.sheet_id,
-    help="Lấy ID từ URL: https://docs.google.com/spreadsheets/d/1xSvsEPHV1MzHa9UumzJtyzAY4LXaiSVKb8tmMcUZPeM/edit"
-)
-
-if sheet_id:
-    st.session_state.sheet_id = sheet_id
-
-# Connect button
-if st.sidebar.button("🔌 Kết nối Google Sheets", type="primary"):
-    st.cache_data.clear()
-    st.rerun()
-
-# Load data
-if sheet_id:
-    client = init_gsheet_connection()
+if client:
+    with st.spinner("⏳ Đang tải dữ liệu từ Google Sheets..."):
+        revenue_data, pipeline_data, projects, sales_perf = load_data_from_sheets(client)
     
-    if client:
-        with st.spinner("⏳ Đang tải dữ liệu..."):
-            revenue_data, pipeline_data, projects, sales_perf = load_data_from_sheets(client, sheet_id)
+    if revenue_data is not None:
+        st.sidebar.success("✅ Kết nối Google Sheets thành công!")
         
-        if revenue_data is not None:
-            st.sidebar.success("✅ Kết nối thành công!")
+        # Refresh button
+        if st.sidebar.button("🔄 Làm mới dữ liệu"):
+            st.cache_data.clear()
+            st.rerun()
+        
+        st.sidebar.markdown("---")
+        
+        # Dashboard selection
+        dashboard_type = st.sidebar.radio(
+            "Chọn Dashboard:",
+            ["🎯 CEO/CCO - Tổng quan", "💼 Kênh bán", "📋 Dự án", "📈 So sánh kế hoạch"]
+        )
+        
+        st.sidebar.markdown("---")
+        
+        # Filters
+        st.sidebar.markdown("### ⚙️ Bộ lọc")
+        channel_filter = st.sidebar.multiselect(
+            "Kênh bán:",
+            ["Nội bộ", "Gov-Hiệp hội", "Corporate"],
+            default=["Nội bộ", "Gov-Hiệp hội", "Corporate"]
+        )
+        
+        st.sidebar.markdown("---")
+        st.sidebar.info("💡 **Mục tiêu 2026**\n- Doanh thu: 80 tỷ\n- Lãi gộp: 13.92 tỷ\n- LNTT: Hòa vốn")
+        
+        # ==================== DASHBOARD 1: CEO/CCO ====================
+        if dashboard_type == "🎯 CEO/CCO - Tổng quan":
+            st.markdown('<div class="main-header">🎯 DASHBOARD CEO/CCO - TỔNG QUAN CHIẾN LƯỢC</div>', unsafe_allow_html=True)
             
-            # Refresh button
-            if st.sidebar.button("🔄 Làm mới dữ liệu"):
-                st.cache_data.clear()
-                st.rerun()
+            # KPI Cards
+            col1, col2, col3, col4 = st.columns(4)
             
-            st.sidebar.markdown("---")
-            
-            # Dashboard selection
-            dashboard_type = st.sidebar.radio(
-                "Chọn Dashboard:",
-                ["🎯 CEO/CCO - Tổng quan", "💼 Kênh bán", "📋 Dự án", "📈 So sánh kế hoạch"]
-            )
-            
-            st.sidebar.markdown("---")
-            
-            # Filters
-            st.sidebar.markdown("### ⚙️ Bộ lọc")
-            channel_filter = st.sidebar.multiselect(
-                "Kênh bán:",
-                ["Nội bộ", "Gov-Hiệp hội", "Corporate"],
-                default=["Nội bộ", "Gov-Hiệp hội", "Corporate"]
-            )
-            
-            st.sidebar.markdown("---")
-            st.sidebar.info("💡 **Mục tiêu 2026**\n- Doanh thu: 80 tỷ\n- Lãi gộp: 13.92 tỷ\n- LNTT: Hòa vốn")
-            
-            # ==================== DASHBOARD 1: CEO/CCO ====================
-            if dashboard_type == "🎯 CEO/CCO - Tổng quan":
-                st.markdown('<div class="main-header">🎯 DASHBOARD CEO/CCO - TỔNG QUAN CHIẾN LƯỢC</div>', unsafe_allow_html=True)
-                
-                # KPI Cards
-                col1, col2, col3, col4 = st.columns(4)
-                
+            if len(revenue_data) > 0:
                 total_revenue = revenue_data['Tổng DT'].sum() / 1_000_000
                 target_revenue = 80_000
                 revenue_achievement = (total_revenue / target_revenue) * 100
@@ -196,10 +194,13 @@ if sheet_id:
                         f"{pipeline_coverage:.1f}x",
                         "Healthy" if pipeline_coverage >= 3 else "Warning"
                     )
-                
-                st.markdown("---")
-                
-                # Revenue Chart
+            else:
+                st.warning("⚠️ Chưa có dữ liệu doanh thu. Vui lòng nhập dữ liệu vào Google Sheet.")
+            
+            st.markdown("---")
+            
+            # Revenue Chart
+            if len(revenue_data) > 0:
                 col1, col2 = st.columns([3, 2])
                 
                 with col1:
@@ -217,6 +218,7 @@ if sheet_id:
                                 textposition='inside'
                             ))
                     
+                    target_revenue = 80_000
                     fig_revenue.add_trace(go.Scatter(
                         name='Target tích lũy',
                         x=revenue_data['Tháng'],
@@ -236,7 +238,9 @@ if sheet_id:
                 with col2:
                     st.subheader("💧 Biên lợi nhuận")
                     
+                    total_revenue = revenue_data['Tổng DT'].sum() / 1_000_000
                     cogs = total_revenue * 0.826
+                    gross_profit = total_revenue * 0.174
                     operating_cost = gross_profit * 0.95
                     
                     fig_waterfall = go.Figure(go.Waterfall(
@@ -254,36 +258,36 @@ if sheet_id:
                     
                     fig_waterfall.update_layout(height=400, showlegend=False)
                     st.plotly_chart(fig_waterfall, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Pipeline & Customer Mix
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("🎯 Pipeline Coverage")
                 
-                st.markdown("---")
-                
-                # Pipeline & Customer Mix
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.subheader("🎯 Pipeline Coverage")
+                if len(pipeline_data) > 0:
+                    fig_funnel = go.Figure(go.Funnel(
+                        y=pipeline_data['Stage'],
+                        x=pipeline_data['Count'],
+                        textposition="inside",
+                        textinfo="value+percent initial",
+                        marker=dict(color=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"])
+                    ))
                     
-                    if len(pipeline_data) > 0:
-                        fig_funnel = go.Figure(go.Funnel(
-                            y=pipeline_data['Stage'],
-                            x=pipeline_data['Count'],
-                            textposition="inside",
-                            textinfo="value+percent initial",
-                            marker=dict(color=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"])
-                        ))
-                        
-                        fig_funnel.update_layout(height=400)
-                        st.plotly_chart(fig_funnel, use_container_width=True)
-                        
-                        if len(pipeline_data) > 0:
-                            conversion_rate = (pipeline_data.iloc[-1]['Count'] / pipeline_data.iloc[0]['Count']) * 100
-                            st.info(f"📊 **Conversion Rate:** {conversion_rate:.1f}%")
-                    else:
-                        st.warning("⚠️ Chưa có dữ liệu pipeline")
-                
-                with col2:
-                    st.subheader("🥧 Cơ cấu khách hàng")
+                    fig_funnel.update_layout(height=400)
+                    st.plotly_chart(fig_funnel, use_container_width=True)
                     
+                    conversion_rate = (pipeline_data.iloc[-1]['Count'] / pipeline_data.iloc[0]['Count']) * 100
+                    st.info(f"📊 **Conversion Rate:** {conversion_rate:.1f}%")
+                else:
+                    st.warning("⚠️ Chưa có dữ liệu pipeline")
+            
+            with col2:
+                st.subheader("🥧 Cơ cấu khách hàng")
+                
+                if len(revenue_data) > 0:
                     internal_pct = (revenue_data['Nội bộ'].sum() / revenue_data['Tổng DT'].sum() * 100)
                     external_pct = 100 - internal_pct
                     
@@ -307,150 +311,153 @@ if sheet_id:
                         st.success("✅ Đạt mục tiêu cơ cấu khách hàng")
                     else:
                         st.warning(f"⚠️ Chênh lệch: {external_pct - 45:+.1f}% so với target 45%")
+                else:
+                    st.info("Chưa có dữ liệu")
+        
+        # ==================== DASHBOARD 2: KÊNH BÁN ====================
+        elif dashboard_type == "💼 Kênh bán":
+            st.markdown('<div class="main-header">💼 DASHBOARD KÊNH BÁN</div>', unsafe_allow_html=True)
             
-            # ==================== DASHBOARD 2: KÊNH BÁN ====================
-            elif dashboard_type == "💼 Kênh bán":
-                st.markdown('<div class="main-header">💼 DASHBOARD KÊNH BÁN</div>', unsafe_allow_html=True)
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_leads = pipeline_data.iloc[0]['Count'] if len(pipeline_data) > 0 else 0
+                st.metric("🎯 Tổng Lead", f"{total_leads}")
+            
+            with col2:
+                if len(pipeline_data) > 0:
+                    win_rate = (pipeline_data.iloc[-1]['Count'] / pipeline_data.iloc[0]['Count'] * 100)
+                    st.metric("✅ Win Rate", f"{win_rate:.1f}%")
+                else:
+                    st.metric("✅ Win Rate", "0%")
+            
+            with col3:
+                if len(sales_perf) > 0:
+                    avg_deal = sales_perf['Doanh thu'].sum() / sales_perf['Số deal'].sum()
+                    st.metric("💵 AOV", f"{avg_deal/1000:.0f}M")
+                else:
+                    st.metric("💵 AOV", "0M")
+            
+            with col4:
+                st.metric("⏱️ Avg. Close Time", "18 ngày")
+            
+            st.markdown("---")
+            
+            # Sales Performance
+            st.subheader("🏆 Bảng xếp hạng Sales Performance")
+            
+            if len(sales_perf) > 0:
+                col1, col2 = st.columns([2, 3])
                 
+                with col1:
+                    sales_perf_sorted = sales_perf.sort_values('Doanh thu', ascending=False).reset_index(drop=True)
+                    sales_perf_sorted['Rank'] = range(1, len(sales_perf_sorted) + 1)
+                    
+                    display_df = sales_perf_sorted[['Rank', 'Nhân viên', 'Doanh thu', 'Số deal', 'Conversion %']].head(10).copy()
+                    display_df['Doanh thu'] = display_df['Doanh thu'].apply(lambda x: f"{x/1000:.0f}M")
+                    
+                    st.dataframe(display_df, hide_index=True, use_container_width=True, height=400)
+                
+                with col2:
+                    fig_scatter = px.scatter(
+                        sales_perf,
+                        x='Số deal',
+                        y='Doanh thu',
+                        size='Conversion %',
+                        color='Kênh',
+                        hover_data=['Nhân viên'],
+                        title="Hiệu suất theo Số deal vs Doanh thu"
+                    )
+                    
+                    fig_scatter.update_layout(height=400)
+                    st.plotly_chart(fig_scatter, use_container_width=True)
+            else:
+                st.warning("⚠️ Chưa có dữ liệu sales performance")
+        
+        # ==================== DASHBOARD 3: DỰ ÁN ====================
+        elif dashboard_type == "📋 Dự án":
+            st.markdown('<div class="main-header">📋 DASHBOARD DỰ ÁN</div>', unsafe_allow_html=True)
+            
+            if len(projects) > 0:
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    total_leads = pipeline_data.iloc[0]['Count'] if len(pipeline_data) > 0 else 0
-                    st.metric("🎯 Tổng Lead", f"{total_leads}")
+                    st.metric("📋 Tổng dự án", len(projects))
                 
                 with col2:
-                    if len(pipeline_data) > 0:
-                        win_rate = (pipeline_data.iloc[-1]['Count'] / pipeline_data.iloc[0]['Count'] * 100)
-                        st.metric("✅ Win Rate", f"{win_rate:.1f}%")
-                    else:
-                        st.metric("✅ Win Rate", "0%")
+                    avg_profit = projects['Lợi nhuận %'].mean()
+                    st.metric("💰 Biên LN TB", f"{avg_profit:.1f}%")
                 
                 with col3:
-                    if len(sales_perf) > 0:
-                        avg_deal = sales_perf['Doanh thu'].sum() / sales_perf['Số deal'].sum()
-                        st.metric("💵 AOV", f"{avg_deal/1000:.0f}M")
-                    else:
-                        st.metric("💵 AOV", "0M")
+                    avg_csat = projects['CSAT'].mean()
+                    st.metric("⭐ CSAT TB", f"{avg_csat:.2f}/5")
                 
                 with col4:
-                    st.metric("⏱️ Avg. Close Time", "18 ngày")
+                    total_project_revenue = projects['Doanh thu'].sum() / 1_000_000
+                    st.metric("💵 Tổng DT dự án", f"{total_project_revenue:,.0f}M")
                 
                 st.markdown("---")
                 
-                # Sales Performance
-                st.subheader("🏆 Bảng xếp hạng Sales Performance")
+                # Project Matrix
+                st.subheader("💎 Ma trận Doanh thu - Lợi nhuận")
                 
-                if len(sales_perf) > 0:
-                    col1, col2 = st.columns([2, 3])
-                    
-                    with col1:
-                        sales_perf_sorted = sales_perf.sort_values('Doanh thu', ascending=False).reset_index(drop=True)
-                        sales_perf_sorted['Rank'] = range(1, len(sales_perf_sorted) + 1)
-                        
-                        display_df = sales_perf_sorted[['Rank', 'Nhân viên', 'Doanh thu', 'Số deal', 'Conversion %']].head(10).copy()
-                        display_df['Doanh thu'] = display_df['Doanh thu'].apply(lambda x: f"{x/1000:.0f}M")
-                        
-                        st.dataframe(display_df, hide_index=True, use_container_width=True, height=400)
-                    
-                    with col2:
-                        fig_scatter = px.scatter(
-                            sales_perf,
-                            x='Số deal',
-                            y='Doanh thu',
-                            size='Conversion %',
-                            color='Kênh',
-                            hover_data=['Nhân viên'],
-                            title="Hiệu suất theo Số deal vs Doanh thu"
-                        )
-                        
-                        fig_scatter.update_layout(height=400)
-                        st.plotly_chart(fig_scatter, use_container_width=True)
-                else:
-                    st.warning("⚠️ Chưa có dữ liệu sales performance")
-            
-            # ==================== DASHBOARD 3: DỰ ÁN ====================
-            elif dashboard_type == "📋 Dự án":
-                st.markdown('<div class="main-header">📋 DASHBOARD DỰ ÁN</div>', unsafe_allow_html=True)
+                fig_scatter = px.scatter(
+                    projects,
+                    x='Doanh thu',
+                    y='Lợi nhuận %',
+                    size='Khách',
+                    color='Loại',
+                    hover_data=['Dự án', 'CSAT'],
+                    title="Bubble size = Số lượng khách"
+                )
                 
-                if len(projects) > 0:
-                    col1, col2, col3, col4 = st.columns(4)
+                fig_scatter.add_hline(y=projects['Lợi nhuận %'].median(), line_dash="dash", line_color="gray")
+                fig_scatter.add_vline(x=projects['Doanh thu'].median(), line_dash="dash", line_color="gray")
+                
+                fig_scatter.update_layout(height=450)
+                st.plotly_chart(fig_scatter, use_container_width=True)
+                
+                st.info("💡 **Insight:** Tập trung nhân rộng các event ở góc phải trên (DT cao + LN cao)")
+                
+                st.markdown("---")
+                
+                # CSAT Analysis
+                col1, col2 = st.columns([2, 3])
+                
+                with col1:
+                    st.subheader("⭐ Phân bố CSAT")
                     
-                    with col1:
-                        st.metric("📋 Tổng dự án", len(projects))
+                    csat_bins = pd.cut(projects['CSAT'], bins=[0, 3, 3.5, 4, 4.5, 5], 
+                                      labels=['1-3', '3-3.5', '3.5-4', '4-4.5', '4.5-5'])
+                    csat_dist = csat_bins.value_counts().sort_index()
                     
-                    with col2:
-                        avg_profit = projects['Lợi nhuận %'].mean()
-                        st.metric("💰 Biên LN TB", f"{avg_profit:.1f}%")
+                    fig_csat = go.Figure(data=[go.Bar(
+                        x=csat_dist.index.astype(str),
+                        y=csat_dist.values,
+                        marker_color=['#ff6b6b', '#ffa94d', '#ffd43b', '#51cf66', '#37b24d']
+                    )])
                     
-                    with col3:
-                        avg_csat = projects['CSAT'].mean()
-                        st.metric("⭐ CSAT TB", f"{avg_csat:.2f}/5")
+                    fig_csat.update_layout(height=300, xaxis_title="Điểm CSAT", yaxis_title="Số lượng")
+                    st.plotly_chart(fig_csat, use_container_width=True)
+                
+                with col2:
+                    st.subheader("📋 Dự án có CSAT thấp")
                     
-                    with col4:
-                        total_project_revenue = projects['Doanh thu'].sum() / 1_000_000
-                        st.metric("💵 Tổng DT dự án", f"{total_project_revenue:,.0f}M")
+                    low_csat = projects[projects['CSAT'] < 4.0][['Dự án', 'Loại', 'Doanh thu', 'CSAT']].sort_values('CSAT').copy()
                     
-                    st.markdown("---")
-                    
-                    # Project Matrix
-                    st.subheader("💎 Ma trận Doanh thu - Lợi nhuận")
-                    
-                    fig_scatter = px.scatter(
-                        projects,
-                        x='Doanh thu',
-                        y='Lợi nhuận %',
-                        size='Khách',
-                        color='Loại',
-                        hover_data=['Dự án', 'CSAT'],
-                        title="Bubble size = Số lượng khách"
-                    )
-                    
-                    fig_scatter.add_hline(y=projects['Lợi nhuận %'].median(), line_dash="dash", line_color="gray")
-                    fig_scatter.add_vline(x=projects['Doanh thu'].median(), line_dash="dash", line_color="gray")
-                    
-                    fig_scatter.update_layout(height=450)
-                    st.plotly_chart(fig_scatter, use_container_width=True)
-                    
-                    st.info("💡 **Insight:** Tập trung nhân rộng các event ở góc phải trên (DT cao + LN cao)")
-                    
-                    st.markdown("---")
-                    
-                    # CSAT Analysis
-                    col1, col2 = st.columns([2, 3])
-                    
-                    with col1:
-                        st.subheader("⭐ Phân bố CSAT")
-                        
-                        csat_bins = pd.cut(projects['CSAT'], bins=[0, 3, 3.5, 4, 4.5, 5], 
-                                          labels=['1-3', '3-3.5', '3.5-4', '4-4.5', '4.5-5'])
-                        csat_dist = csat_bins.value_counts().sort_index()
-                        
-                        fig_csat = go.Figure(data=[go.Bar(
-                            x=csat_dist.index.astype(str),
-                            y=csat_dist.values,
-                            marker_color=['#ff6b6b', '#ffa94d', '#ffd43b', '#51cf66', '#37b24d']
-                        )])
-                        
-                        fig_csat.update_layout(height=300, xaxis_title="Điểm CSAT", yaxis_title="Số lượng")
-                        st.plotly_chart(fig_csat, use_container_width=True)
-                    
-                    with col2:
-                        st.subheader("📋 Dự án có CSAT thấp")
-                        
-                        low_csat = projects[projects['CSAT'] < 4.0][['Dự án', 'Loại', 'Doanh thu', 'CSAT']].sort_values('CSAT').copy()
-                        
-                        if len(low_csat) > 0:
-                            low_csat['Doanh thu'] = low_csat['Doanh thu'].apply(lambda x: f"{x/1000:.0f}M")
-                            st.dataframe(low_csat, hide_index=True, use_container_width=True, height=300)
-                        else:
-                            st.success("🎉 Không có dự án nào có CSAT < 4.0!")
-                else:
-                    st.warning("⚠️ Chưa có dữ liệu dự án")
-            
-            # ==================== DASHBOARD 4: SO SÁNH ====================
+                    if len(low_csat) > 0:
+                        low_csat['Doanh thu'] = low_csat['Doanh thu'].apply(lambda x: f"{x/1000:.0f}M")
+                        st.dataframe(low_csat, hide_index=True, use_container_width=True, height=300)
+                    else:
+                        st.success("🎉 Không có dự án nào có CSAT < 4.0!")
             else:
-                st.markdown('<div class="main-header">📈 SO SÁNH KẾ HOẠCH VS THỰC TẾ</div>', unsafe_allow_html=True)
-                
+                st.warning("⚠️ Chưa có dữ liệu dự án")
+        
+        # ==================== DASHBOARD 4: SO SÁNH ====================
+        else:
+            st.markdown('<div class="main-header">📈 SO SÁNH KẾ HOẠCH VS THỰC TẾ</div>', unsafe_allow_html=True)
+            
+            if len(revenue_data) > 0:
                 total_revenue = revenue_data['Tổng DT'].sum() / 1_000_000
                 gross_profit = total_revenue * 0.174
                 avg_csat = projects['CSAT'].mean() if len(projects) > 0 else 0
@@ -530,30 +537,12 @@ if sheet_id:
                 
                 fig_trend.update_layout(height=400, hovermode='x unified')
                 st.plotly_chart(fig_trend, use_container_width=True)
-        
-        else:
-            st.error("❌ Không thể load dữ liệu. Kiểm tra Sheet ID và cấu trúc sheets.")
+            else:
+                st.warning("⚠️ Chưa có dữ liệu")
+    else:
+        st.error("❌ Không thể load dữ liệu từ Google Sheets")
 else:
-    st.info("👈 Nhập Google Sheet ID ở sidebar để bắt đầu")
-    
-    st.markdown("""
-    ### 📝 Hướng dẫn sử dụng:
-    
-    1. **Tạo Google Sheet** với 4 sheets:
-       - `revenue_monthly`: Doanh thu theo tháng
-       - `sales_pipeline`: Pipeline bán hàng
-       - `projects`: Danh sách dự án
-       - `sales_performance`: Hiệu suất sales
-    
-    2. **Lấy Sheet ID** từ URL:
-       ```
-       https://docs.google.com/spreadsheets/d/1xSvsEPHV1MzHa9UumzJtyzAY4LXaiSVKb8tmMcUZPeM/edit
-       ```
-    
-    3. **Share sheet** với email service account
-    
-    4. **Nhập Sheet ID** vào sidebar và click "Kết nối"
-    """)
+    st.error("❌ Không thể kết nối Google Sheets. Kiểm tra secrets configuration.")
 
 # Footer
 st.markdown("---")
