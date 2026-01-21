@@ -152,53 +152,53 @@ if client:
         st.sidebar.info("💡 **Mục tiêu 2026**\n- Doanh thu: 80 tỷ\n- Lãi gộp: 13.92 tỷ\n- LNTT: Hòa vốn")
         
         # ==================== DASHBOARD 1: CEO/CCO ====================
-if dashboard_type == "🎯 CEO/CCO - Tổng quan":
-    st.markdown('<div class="main-header">🎯 DASHBOARD CEO/CCO - TỔNG QUAN CHIẾN LƯỢC</div>', unsafe_allow_html=True)
-    
-    # KPI Cards
-    col1, col2, col3, col4 = st.columns(4)
-    
-    if len(revenue_data) > 0:
-        # ✅ LẤY DỮ LIỆU THỰC TỪ SHEET
-        total_revenue = revenue_data['Tổng doanh thu'].sum() / 1_000_000
-        total_cogs = revenue_data['COGS'].sum() / 1_000_000
-        total_gross_profit = revenue_data['Lãi gộp'].sum() / 1_000_000
-        avg_gross_margin = revenue_data['Tỷ lệ lãi gộp (%)'].mean()
-        total_operating_cost = revenue_data['Chi phí gián tiếp'].sum() / 1_000_000
-        total_net_profit = revenue_data['Lợi nhuận ròng'].sum() / 1_000_000
-        avg_net_margin = revenue_data['Tỷ lệ lợi nhuận (%)'].mean()
+    if dashboard_type == "🎯 CEO/CCO - Tổng quan":
+        st.markdown('<div class="main-header">🎯 DASHBOARD CEO/CCO - TỔNG QUAN CHIẾN LƯỢC</div>', unsafe_allow_html=True)
         
-        target_revenue = 80_000
-        revenue_achievement = (total_revenue / target_revenue) * 100
+        # KPI Cards
+        col1, col2, col3, col4 = st.columns(4)
         
-        with col1:
-            st.metric(
-                "💰 Doanh thu tích lũy",
-                f"{total_revenue:,.0f}M",
-                f"{revenue_achievement:.1f}% target"
-            )
-        
-        with col2:
-            st.metric(
-                "📊 Lãi gộp",
-                f"{total_gross_profit:,.0f}M",
-                f"{avg_gross_margin:.1f}%"
-            )
-        
-        with col3:
-            st.metric(
-                "💸 Chi phí gián tiếp",
-                f"{total_operating_cost:,.0f}M"
-            )
-        
-        with col4:
-            color = "normal" if total_net_profit >= 0 else "inverse"
-            st.metric(
-                "🎯 Lợi nhuận ròng",
-                f"{total_net_profit:,.0f}M",
-                f"{avg_net_margin:.1f}%",
-                delta_color=color
-            )
+        if len(revenue_data) > 0:
+            # ✅ LẤY DỮ LIỆU THỰC TỪ SHEET
+            total_revenue = revenue_data['Tổng doanh thu'].sum() / 1_000_000
+            total_cogs = revenue_data['COGS'].sum() / 1_000_000
+            total_gross_profit = revenue_data['Lãi gộp'].sum() / 1_000_000
+            avg_gross_margin = revenue_data['Tỷ lệ lãi gộp (%)'].mean()
+            total_operating_cost = revenue_data['Chi phí gián tiếp'].sum() / 1_000_000
+            total_net_profit = revenue_data['Lợi nhuận ròng'].sum() / 1_000_000
+            avg_net_margin = revenue_data['Tỷ lệ lợi nhuận (%)'].mean()
+            
+            target_revenue = 80_000
+            revenue_achievement = (total_revenue / target_revenue) * 100
+            
+            with col1:
+                st.metric(
+                    "💰 Doanh thu tích lũy",
+                    f"{total_revenue:,.0f}M",
+                    f"{revenue_achievement:.1f}% target"
+                )
+            
+            with col2:
+                st.metric(
+                    "📊 Lãi gộp",
+                    f"{total_gross_profit:,.0f}M",
+                    f"{avg_gross_margin:.1f}%"
+                )
+            
+            with col3:
+                st.metric(
+                    "💸 Chi phí gián tiếp",
+                    f"{total_operating_cost:,.0f}M"
+                )
+            
+            with col4:
+                color = "normal" if total_net_profit >= 0 else "inverse"
+                st.metric(
+                    "🎯 Lợi nhuận ròng",
+                    f"{total_net_profit:,.0f}M",
+                    f"{avg_net_margin:.1f}%",
+                    delta_color=color
+                )
             else:
                 st.warning("⚠️ Chưa có dữ liệu doanh thu. Vui lòng nhập dữ liệu vào Google Sheet.")
             
