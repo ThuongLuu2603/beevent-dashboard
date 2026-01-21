@@ -706,15 +706,13 @@ elif page == "📝 Quản lý Dự án":
             st.info("Chưa có dữ liệu để thống kê")
 
 # ==================== PAGE 3: TIMELINE DỰ ÁN ====================
-# ==================== PAGE 3: TIMELINE DỰ ÁN (FULL FEATURES) ====================
+# ==================== PAGE 3: TIMELINE DỰ ÁN (FULL VERSION) ====================
 elif page == "📅 Timeline Dự án":
     st.markdown('<div class="main-header">📅 SƠ ĐỒ GANTT</div>', unsafe_allow_html=True)
     
     projects_df = load_projects(sheet)
     timeline_df = load_timeline(sheet)
-    members_df = load_members(sheet)  # Load từ Google Sheets
-    member_names = members_df['Họ và tên'].tolist()
-    phu_trach = st.selectbox("Phụ trách *", member_names)
+    members_df = load_members(sheet)  # Load danh sách nhân sự
     
     tab1, tab2 = st.tabs(["📊 Gantt Chart", "➕ Thêm giai đoạn"])
     
@@ -784,8 +782,193 @@ elif page == "📅 Timeline Dự án":
                 days_in_month = (month_end - month_start).days + 1
                 calendar_days = [month_start + timedelta(days=i) for i in range(days_in_month)]
                 
-                # Display tasks as clickable cards
-                st.markdown("### 📋 Danh sách Task (Click để chỉnh sửa)")
+                # ============ PHẦN 1: CALENDAR GANTT VISUAL ============
+                st.markdown("### 📅 Biểu đồ Gantt Calendar")
+                
+                # Create CSS (FIXED - tách riêng CSS)
+                css_style = """
+                <style>
+                    .gantt-container {
+                        overflow-x: auto;
+                        border: 1px solid #ddd;
+                        border-radius: 8px;
+                        background: white;
+                        margin-bottom: 20px;
+                    }
+                    .gantt-header {
+                        display: grid;
+                        grid-template-columns: 250px repeat(""" + str(days_in_month) + """, 40px);
+                        background: #f8f9fa;
+                        border-bottom: 2px solid #dee2e6;
+                        position: sticky;
+                        top: 0;
+                        z-index: 10;
+                    }
+                    .gantt-header-cell {
+                        padding: 8px 4px;
+                        text-align: center;
+                        border-right: 1px solid #dee2e6;
+                        font-size: 11px;
+                    }
+                    .gantt-header-cell.weekend {
+                        background: #ffe5e5;
+                    }
+                    .gantt-row {
+                        display: grid;
+                        grid-template-columns: 250px repeat(""" + str(days_in_month) + """, 40px);
+                        border-bottom: 1px solid #eee;
+                        min-height: 50px;
+                        align-items: center;
+                    }
+                    .gantt-row:hover {
+                        background: #f8f9fa;
+                    }
+                    .gantt-task-name {
+                        padding: 8px;
+                        border-right: 2px solid #dee2e6;
+                        font-size: 12px;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .gantt-cell {
+                        border-right: 1px solid #f0f0f0;
+                        position: relative;
+                        height: 100%;
+                    }
+                    .gantt-cell.weekend {
+                        background: #fafafa;
+                    }
+                    .gantt-bar {
+                        position: absolute;
+                        height: 30px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        border-radius: 4px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 10px;
+                        font-weight: bold;
+                        color: white;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    }
+                    .gantt-bar:hover {
+                        transform: translateY(-50%) scale(1.05);
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                    }
+                    .status-chua-bat-dau { background: #ff6b6b; }
+                    .status-dang-thuc-hien { background: #51cf66; }
+                    .status-hoan-thanh { background: #1f77b4; }
+                    .status-tre-han { background: #ff0000; }
+                </style>
+                """
+                
+                # Start HTML
+                calendar_html = css_style + """
+                <div class="gantt-container">
+                    <!-- Header -->
+                    <div class="gantt-header">
+                        <div class="gantt-header-cell" style="text-align: left; padding-left: 16px;"><b>Tên task</b></div>
+                """
+                
+                # Add day headers
+                for day in calendar_days:
+                    weekend_class = "weekend" if day.weekday() >= 5 else ""
+                    day_name = ["Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7", "CN"][day.weekday()]
+                    calendar_html += f"""
+                        <div class="gantt-header-cell {weekend_class}">
+                            <div><b>{day.day}</b></div>
+                            <div style="font-size: 9px; color: #666;">{day_name}</div>
+                        </div>
+                    """
+                
+                calendar_html += "</div>"
+                
+                # Add task rows
+                for idx, task in month_timeline.iterrows():
+                    # Task info
+                    task_name = task['Giai đoạn']
+                    task_status = task['Trạng thái']
+                    task_progress = task['Tiến độ %']
+                    task_person = task['Phụ trách']
+                    task_priority = task.get('Độ ưu tiên', 'Trung bình')
+                    
+                    # Status class
+                    status_class = {
+                        'Chưa bắt đầu': 'status-chua-bat-dau',
+                        'Đang thực hiện': 'status-dang-thuc-hien',
+                        'Hoàn thành': 'status-hoan-thanh',
+                        'Trễ hạn': 'status-tre-han'
+                    }.get(task_status, 'status-chua-bat-dau')
+                    
+                    # Priority emoji
+                    priority_emoji = {'Cao': '🔴', 'Trung bình': '🟡', 'Thấp': '🟢'}.get(task_priority, '⚪')
+                    
+                    calendar_html += f"""
+                    <div class="gantt-row">
+                        <div class="gantt-task-name">
+                            <div>
+                                <div><b>{task_name}</b> {priority_emoji}</div>
+                                <div style="font-size: 10px; color: #666;">{task_person} - {task_status}</div>
+                            </div>
+                        </div>
+                    """
+                    
+                    # Calculate bar position
+                    task_start = max(task['Ngày bắt đầu'], month_start)
+                    task_end = min(task['Ngày kết thúc'], month_end)
+                    
+                    start_col = (task_start - month_start).days
+                    duration = (task_end - task_start).days + 1
+                    
+                    # Add cells
+                    for i, day in enumerate(calendar_days):
+                        weekend_class = "weekend" if day.weekday() >= 5 else ""
+                        
+                        # Check if bar should start here
+                        if i == start_col:
+                            bar_width = duration * 40 - 4
+                            calendar_html += f"""
+                                <div class="gantt-cell {weekend_class}">
+                                    <div class="gantt-bar {status_class}" 
+                                         style="width: {bar_width}px; left: 2px;"
+                                         title="{task_name} ({task_start.strftime('%d/%m')} - {task_end.strftime('%d/%m')})">
+                                        {task_progress}%
+                                    </div>
+                                </div>
+                            """
+                        elif start_col < i < start_col + duration:
+                            # Empty cell covered by bar
+                            calendar_html += f'<div class="gantt-cell {weekend_class}"></div>'
+                        else:
+                            # Empty cell
+                            calendar_html += f'<div class="gantt-cell {weekend_class}"></div>'
+                    
+                    calendar_html += "</div>"
+                
+                calendar_html += "</div>"
+                
+                # Display calendar
+                st.components.v1.html(calendar_html, height=max(400, len(month_timeline) * 60 + 100), scrolling=True)
+                
+                # Legend
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.markdown("🔴 **Chưa bắt đầu**")
+                with col2:
+                    st.markdown("🟢 **Đang thực hiện**")
+                with col3:
+                    st.markdown("🔵 **Hoàn thành**")
+                with col4:
+                    st.markdown("⚠️ **Trễ hạn**")
+                
+                st.markdown("---")
+                
+                # ============ PHẦN 2: DANH SÁCH TASK CÓ THỂ EDIT ============
+                st.markdown("### 📋 Chi tiết Task (Click để chỉnh sửa)")
                 
                 for idx, task in month_timeline.iterrows():
                     task_id = task['ID']
@@ -796,15 +979,6 @@ elif page == "📅 Timeline Dự án":
                     task_priority = task.get('Độ ưu tiên', 'Trung bình')
                     task_start = task['Ngày bắt đầu']
                     task_end = task['Ngày kết thúc']
-                    
-                    # Status color
-                    status_colors = {
-                        'Chưa bắt đầu': '#ff6b6b',
-                        'Đang thực hiện': '#51cf66',
-                        'Hoàn thành': '#1f77b4',
-                        'Trễ hạn': '#ff0000'
-                    }
-                    status_color = status_colors.get(task_status, '#999')
                     
                     # Priority emoji
                     priority_emoji = {'Cao': '🔴', 'Trung bình': '🟡', 'Thấp': '🟢'}.get(task_priority, '⚪')
@@ -839,26 +1013,28 @@ elif page == "📅 Timeline Dự án":
                                     new_status = st.selectbox(
                                         "Trạng thái",
                                         ["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Trễ hạn"],
-                                        index=["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Trễ hạn"].index(task_status)
+                                        index=["Chưa bắt đầu", "Đang thực hiện", "Hoàn thành", "Trễ hạn"].index(task_status),
+                                        key=f"status_{task_id}"
                                     )
-                                    new_progress = st.slider("Tiến độ (%)", 0, 100, int(task_progress))
+                                    new_progress = st.slider("Tiến độ (%)", 0, 100, int(task_progress), key=f"progress_{task_id}")
                                 
                                 with col2:
                                     new_priority = st.selectbox(
                                         "Độ ưu tiên",
                                         ["Cao", "Trung bình", "Thấp"],
-                                        index=["Cao", "Trung bình", "Thấp"].index(task_priority)
+                                        index=["Cao", "Trung bình", "Thấp"].index(task_priority),
+                                        key=f"priority_{task_id}"
                                     )
                                     
                                     # Load danh sách nhân sự
                                     if len(members_df) > 0:
                                         member_names = members_df['Họ và tên'].tolist()
                                         current_person_idx = member_names.index(task_person) if task_person in member_names else 0
-                                        new_person = st.selectbox("Phụ trách", member_names, index=current_person_idx)
+                                        new_person = st.selectbox("Phụ trách", member_names, index=current_person_idx, key=f"person_{task_id}")
                                     else:
-                                        new_person = st.text_input("Phụ trách", value=task_person)
+                                        new_person = st.text_input("Phụ trách", value=task_person, key=f"person_{task_id}")
                                 
-                                new_note = st.text_area("Ghi chú cập nhật", placeholder="Thêm ghi chú về thay đổi...")
+                                new_note = st.text_area("Ghi chú cập nhật", placeholder="Thêm ghi chú về thay đổi...", key=f"note_{task_id}")
                                 
                                 col1, col2 = st.columns(2)
                                 
@@ -872,7 +1048,7 @@ elif page == "📅 Timeline Dự án":
                                             # Find row to update
                                             for row_idx, row in enumerate(all_data[1:], start=2):
                                                 if row[0] == task_id:
-                                                    # Update columns
+                                                    # Update columns (adjust column numbers based on your sheet structure)
                                                     timeline_sheet.update_cell(row_idx, 8, new_status)  # Trạng thái
                                                     timeline_sheet.update_cell(row_idx, 9, new_progress)  # Tiến độ
                                                     timeline_sheet.update_cell(row_idx, 10, new_priority)  # Độ ưu tiên
@@ -896,7 +1072,7 @@ elif page == "📅 Timeline Dự án":
                                         st.session_state[f'editing_task_{task_id}'] = False
                                         st.rerun()
                 
-                # Summary metrics
+                # Summary
                 st.markdown("---")
                 col1, col2, col3, col4 = st.columns(4)
                 
