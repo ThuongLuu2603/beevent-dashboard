@@ -686,7 +686,7 @@ elif page == "📝 Quản lý Dự án":
             st.info("Chưa có dữ liệu để thống kê")
 
 # ==================== PAGE 3: TIMELINE DỰ ÁN ====================
-# ==================== PAGE 3: TIMELINE DỰ ÁN (CALENDAR GANTT) ====================
+# ==================== PAGE 3: TIMELINE DỰ ÁN (FIXED V2) ====================
 elif page == "📅 Timeline Dự án":
     st.markdown('<div class="main-header">📅 SƠ ĐỒ GANTT</div>', unsafe_allow_html=True)
     
@@ -761,8 +761,8 @@ elif page == "📅 Timeline Dự án":
                 days_in_month = (month_end - month_start).days + 1
                 calendar_days = [month_start + timedelta(days=i) for i in range(days_in_month)]
                 
-                # Create calendar header HTML
-                calendar_html = """
+                # Create CSS (FIXED - tách riêng CSS)
+                css_style = """
                 <style>
                     .gantt-container {
                         overflow-x: auto;
@@ -772,7 +772,7 @@ elif page == "📅 Timeline Dự án":
                     }
                     .gantt-header {
                         display: grid;
-                        grid-template-columns: 250px repeat({days}, 40px);
+                        grid-template-columns: 250px repeat(""" + str(days_in_month) + """, 40px);
                         background: #f8f9fa;
                         border-bottom: 2px solid #dee2e6;
                         position: sticky;
@@ -790,7 +790,7 @@ elif page == "📅 Timeline Dự án":
                     }
                     .gantt-row {
                         display: grid;
-                        grid-template-columns: 250px repeat({days}, 40px);
+                        grid-template-columns: 250px repeat(""" + str(days_in_month) + """, 40px);
                         border-bottom: 1px solid #eee;
                         min-height: 50px;
                         align-items: center;
@@ -844,14 +844,16 @@ elif page == "📅 Timeline Dự án":
                         cursor: pointer;
                     }
                 </style>
+                """
                 
+                # Start HTML
+                calendar_html = css_style + """
                 <div class="gantt-container">
                     <!-- Header -->
                     <div class="gantt-header">
                         <div class="gantt-header-cell" style="text-align: left; padding-left: 16px;"><b>Tên task</b></div>
-                f"""
-                grid-template-columns: 250px repeat({days_in_month}, 40px);
                 """
+                
                 # Add day headers
                 for day in calendar_days:
                     weekend_class = "weekend" if day.weekday() >= 5 else ""
@@ -910,7 +912,7 @@ elif page == "📅 Timeline Dự án":
                     for i, day in enumerate(calendar_days):
                         weekend_class = "weekend" if day.weekday() >= 5 else ""
                         
-                        # Check if bar should be here
+                        # Check if bar should start here
                         if i == start_col:
                             bar_width = duration * 40 - 4
                             calendar_html += f"""
@@ -923,9 +925,10 @@ elif page == "📅 Timeline Dự án":
                                 </div>
                             """
                         elif start_col < i < start_col + duration:
-                            # Skip cells covered by bar
-                            continue
+                            # Empty cell covered by bar
+                            calendar_html += f'<div class="gantt-cell {weekend_class}"></div>'
                         else:
+                            # Empty cell
                             calendar_html += f'<div class="gantt-cell {weekend_class}"></div>'
                     
                     calendar_html += "</div>"
@@ -965,10 +968,6 @@ elif page == "📅 Timeline Dự án":
                 
             else:
                 st.info("📭 Không có task nào trong tháng này.")
-                
-                if st.button("➕ Thêm task mới", use_container_width=True):
-                    st.session_state['switch_to_add_tab'] = True
-                    st.rerun()
         else:
             st.warning("⚠️ Chưa có dự án nào. Vui lòng tạo dự án trước!")
     
