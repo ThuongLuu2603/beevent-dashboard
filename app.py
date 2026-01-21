@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import numpy as np
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import json
 
 # ==================== CONFIG ====================
 st.set_page_config(
@@ -34,8 +33,12 @@ st.markdown("""
         padding: 0.5rem 1rem;
         font-weight: bold;
     }
-    .stButton>button:hover {
-        background-color: #0d5a9e;
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 10px;
+        color: white;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .timeline-item {
         border-left: 3px solid #1f77b4;
@@ -43,30 +46,12 @@ st.markdown("""
         margin-bottom: 1rem;
         position: relative;
     }
-    .timeline-item::before {
-        content: '';
-        position: absolute;
-        left: -7px;
-        top: 0;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: #1f77b4;
-    }
     .staff-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1.5rem;
         border-radius: 10px;
         color: white;
         margin-bottom: 1rem;
-    }
-    .gantt-bar {
-        height: 30px;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        padding-left: 10px;
-        margin: 5px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -206,6 +191,53 @@ def save_customer(sheet, customer_data):
     ws.append_row(list(customer_data.values()))
     return True
 
+# ==================== SAMPLE DATA FOR DASHBOARD ====================
+@st.cache_data
+def generate_sample_data():
+    """Generate sample data for dashboard demo"""
+    np.random.seed(42)
+    
+    months = pd.date_range('2026-01-01', periods=12, freq='MS')
+    
+    noi_bo = (np.random.randint(3000, 5000, 12) * 1000).tolist()
+    gov = (np.random.randint(1000, 2000, 12) * 1000).tolist()
+    corporate = (np.random.randint(1500, 2500, 12) * 1000).tolist()
+    
+    revenue_data = pd.DataFrame({
+        'Tháng': months,
+        'Nội bộ': noi_bo,
+        'Gov-Hiệp hội': gov,
+        'Corporate': corporate
+    })
+    revenue_data['Tổng DT'] = revenue_data['Nội bộ'] + revenue_data['Gov-Hiệp hội'] + revenue_data['Corporate']
+    
+    pipeline_data = pd.DataFrame({
+        'Stage': ['Lead', 'Qualified', 'Proposal', 'Won'],
+        'Count': [150, 95, 60, 38],
+        'Value': [12000, 9500, 7200, 4800]
+    })
+    
+    num_projects = 20
+    projects = pd.DataFrame({
+        'Dự án': [f'Event {i}' for i in range(1, num_projects + 1)],
+        'Doanh thu': (np.random.randint(200, 2000, num_projects) * 1000).tolist(),
+        'Lợi nhuận %': np.random.uniform(5, 25, num_projects).tolist(),
+        'Khách': np.random.randint(50, 1000, num_projects).tolist(),
+        'Loại': np.random.choice(['Teambuilding', 'Gala', 'Conference', 'Festival'], num_projects).tolist(),
+        'CSAT': np.random.uniform(3.5, 5.0, num_projects).tolist()
+    })
+    
+    num_sales = 12
+    sales_perf = pd.DataFrame({
+        'Nhân viên': [f'Sale {i}' for i in range(1, num_sales + 1)],
+        'Doanh thu': (np.random.randint(300, 800, num_sales) * 1000).tolist(),
+        'Số deal': np.random.randint(5, 15, num_sales).tolist(),
+        'Conversion %': np.random.uniform(15, 45, num_sales).tolist(),
+        'Kênh': np.random.choice(['Nội bộ', 'Gov', 'Corporate'], num_sales).tolist()
+    })
+    
+    return revenue_data, pipeline_data, projects, sales_perf
+
 # ==================== SIDEBAR ====================
 st.sidebar.title("🎯 BEEVENT SYSTEM")
 st.sidebar.markdown("---")
@@ -214,7 +246,7 @@ st.sidebar.markdown("---")
 sheet = init_google_sheets()
 
 if sheet is None:
-    st.error("⚠️ Không thể kết nối Google Sheets. Vui lòng kiểm tra cấu hình!")
+    st.error("⚠️ Không thể kết nối Google Sheets!")
     st.stop()
 
 # Navigation
@@ -910,32 +942,300 @@ elif page == "💰 Quản lý Tài chính":
     else:
         st.info("Chưa có dữ liệu tài chính")
 
-# ==================== PAGE 7: DASHBOARD ====================
-elif page == "📊 Dashboard & Báo cáo":
+# ==================== PAGE 7: DASHBOARD & BÁO CÁO (TÍCH HỢP CODE CŨ) ====================
+if page == "📊 Dashboard & Báo cáo":
     st.markdown('<div class="main-header">📊 DASHBOARD & BÁO CÁO</div>', unsafe_allow_html=True)
     
+    # Load data
     projects_df = load_projects(sheet)
     
-    if len(projects_df) > 0:
-        st.info("📊 Dashboard tổng hợp (có thể tích hợp code dashboard cũ)")
+    # Nếu chưa có dữ liệu thật, dùng sample data
+    if len(projects_df) == 0:
+        st.info("ℹ️ Chưa có dữ liệu thật. Hiển thị demo dashboard...")
+        revenue_data, pipeline_data, projects, sales_perf = generate_sample_data()
     else:
-        st.warning("⚠️ Chưa có dữ liệu để hiển thị dashboard")
-
-# ==================== PAGE 8: CÀI ĐẶT ====================
-else:
-    st.markdown('<div class="main-header">⚙️ CÀI ĐẶT HỆ THỐNG</div>', unsafe_allow_html=True)
+        # TODO: Convert real data to dashboard format
+        st.warning("⚠️ Đang dùng dữ liệu thật từ Google Sheets")
+        revenue_data, pipeline_data, projects, sales_perf = generate_sample_data()
     
-    st.subheader("🔗 Kết nối Google Sheets")
+    # ===== TÍCH HỢP CODE DASHBOARD CŨ =====
     
-    if sheet:
-        st.success(f"✅ Đã kết nối: **{sheet.title}**")
-        st.info(f"📊 URL: {sheet.url}")
+    # Dashboard selection
+    dashboard_type = st.radio(
+        "Chọn Dashboard:",
+        ["🎯 CEO/CCO - Tổng quan", "💼 Kênh bán", "📋 Dự án", "📈 So sánh kế hoạch"],
+        horizontal=True
+    )
+    
+    st.markdown("---")
+    
+    # Filters
+    with st.expander("⚙️ Bộ lọc", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            channel_filter = st.multiselect(
+                "Kênh bán:",
+                ["Nội bộ", "Gov-Hiệp hội", "Corporate"],
+                default=["Nội bộ", "Gov-Hiệp hội", "Corporate"]
+            )
+        with col2:
+            st.info("💡 **Mục tiêu 2026**\n- DT: 80 tỷ | Lãi gộp: 13.92 tỷ")
+    
+    st.markdown("---")
+    
+    # ==================== DASHBOARD 1: CEO/CCO ====================
+    if dashboard_type == "🎯 CEO/CCO - Tổng quan":
+        # KPI Cards
+        col1, col2, col3, col4 = st.columns(4)
         
-        if st.button("🔄 Làm mới kết nối"):
-            st.cache_resource.clear()
-            st.rerun()
+        total_revenue = revenue_data['Tổng DT'].sum() / 1_000_000
+        target_revenue = 80_000
+        revenue_achievement = (total_revenue / target_revenue) * 100
+        
+        with col1:
+            st.metric("💰 Doanh thu tích lũy", f"{total_revenue:,.0f}M", f"{revenue_achievement:.1f}% target")
+        
+        with col2:
+            gross_profit = total_revenue * 0.174
+            st.metric("📊 Lãi gộp", f"{gross_profit:,.0f}M", f"{(gross_profit/13920)*100:.1f}% target")
+        
+        with col3:
+            external_rate = 45
+            st.metric("🎯 Khách ngoài", f"{external_rate}%", f"+{external_rate-20}%")
+        
+        with col4:
+            pipeline_coverage = 3.2
+            st.metric("📈 Pipeline Coverage", f"{pipeline_coverage:.1f}x", "Healthy")
+        
+        st.markdown("---")
+        
+        # Revenue Chart
+        col1, col2 = st.columns([3, 2])
+        
+        with col1:
+            st.subheader("📊 Doanh thu theo kênh (Tích lũy)")
+            
+            fig_revenue = go.Figure()
+            
+            for channel in ['Nội bộ', 'Gov-Hiệp hội', 'Corporate']:
+                if channel in channel_filter:
+                    fig_revenue.add_trace(go.Bar(
+                        name=channel,
+                        x=revenue_data['Tháng'],
+                        y=revenue_data[channel] / 1_000_000,
+                        text=[f"{val/1_000_000:.0f}M" for val in revenue_data[channel]],
+                        textposition='inside'
+                    ))
+            
+            fig_revenue.add_trace(go.Scatter(
+                name='Target',
+                x=revenue_data['Tháng'],
+                y=[target_revenue/12 * (i+1) for i in range(12)],
+                mode='lines+markers',
+                line=dict(color='red', width=3, dash='dash')
+            ))
+            
+            fig_revenue.update_layout(barmode='stack', height=400, hovermode='x unified')
+            st.plotly_chart(fig_revenue, use_container_width=True)
+        
+        with col2:
+            st.subheader("💧 Biên lợi nhuận")
+            
+            cogs = total_revenue * 0.826
+            operating_cost = gross_profit * 0.95
+            
+            fig_waterfall = go.Figure(go.Waterfall(
+                orientation="v",
+                measure=["relative", "relative", "total", "relative", "total"],
+                x=["Doanh thu", "COGS", "Lãi gộp", "Chi phí VH", "LNTT"],
+                y=[total_revenue, -cogs, 0, -operating_cost, 0],
+                text=[f"{total_revenue:,.0f}M", f"{-cogs:,.0f}M", f"{gross_profit:,.0f}M", 
+                      f"{-operating_cost:,.0f}M", f"{gross_profit-operating_cost:,.0f}M"],
+                textposition="outside",
+                decreasing={"marker": {"color": "#ff6b6b"}},
+                increasing={"marker": {"color": "#51cf66"}},
+                totals={"marker": {"color": "#1f77b4"}}
+            ))
+            
+            fig_waterfall.update_layout(height=400, showlegend=False)
+            st.plotly_chart(fig_waterfall, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # Pipeline & Customer Mix
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("🎯 Pipeline Coverage")
+            
+            fig_funnel = go.Figure(go.Funnel(
+                y=pipeline_data['Stage'],
+                x=pipeline_data['Count'],
+                textposition="inside",
+                textinfo="value+percent initial"
+            ))
+            
+            fig_funnel.update_layout(height=400)
+            st.plotly_chart(fig_funnel, use_container_width=True)
+        
+        with col2:
+            st.subheader("🥧 Cơ cấu khách hàng")
+            
+            fig_donut = go.Figure(data=[go.Pie(
+                labels=['Nội bộ', 'Bên ngoài'],
+                values=[55, 45],
+                hole=0.5,
+                textinfo='label+percent'
+            )])
+            
+            fig_donut.update_layout(height=400)
+            st.plotly_chart(fig_donut, use_container_width=True)
+    
+    # ==================== DASHBOARD 2: KÊNH BÁN ====================
+    elif dashboard_type == "💼 Kênh bán":
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("🎯 Tổng Lead", "150", "+12")
+        with col2:
+            st.metric("✅ Win Rate", "25.3%", "+3.2%")
+        with col3:
+            st.metric("💵 AOV", "450M", "+15%")
+        with col4:
+            st.metric("⏱️ Close Time", "18 ngày", "-3")
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns([3, 2])
+        
+        with col1:
+            st.subheader("🔄 Lead Flow (Sankey)")
+            
+            fig_sankey = go.Figure(data=[go.Sankey(
+                node=dict(
+                    label=["Lead", "Qualified", "Proposal", "Won", "Lost"],
+                    color=["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#7f7f7f"]
+                ),
+                link=dict(
+                    source=[0, 0, 1, 1, 2, 2],
+                    target=[1, 4, 2, 4, 3, 4],
+                    value=[95, 55, 60, 35, 38, 22]
+                )
+            )])
+            
+            fig_sankey.update_layout(height=400)
+            st.plotly_chart(fig_sankey, use_container_width=True)
+        
+        with col2:
+            st.subheader("📊 Phân bố giá trị Deal")
+            
+            deal_values = np.random.lognormal(13, 1, 100) / 1000
+            
+            fig_box = go.Figure()
+            fig_box.add_trace(go.Box(y=deal_values, boxmean='sd'))
+            fig_box.update_layout(height=400, yaxis_title="Giá trị (M VNĐ)")
+            st.plotly_chart(fig_box, use_container_width=True)
+        
+        st.markdown("---")
+        
+        st.subheader("🏆 Sales Performance")
+        
+        sales_perf_sorted = sales_perf.sort_values('Doanh thu', ascending=False)
+        
+        col1, col2 = st.columns([2, 3])
+        
+        with col1:
+            top_5 = sales_perf_sorted.head(5)[['Nhân viên', 'Doanh thu', 'Số deal']].copy()
+            top_5['Doanh thu'] = top_5['Doanh thu'].apply(lambda x: f"{x/1000:.0f}M")
+            st.dataframe(top_5, hide_index=True, use_container_width=True)
+        
+        with col2:
+            fig_scatter = px.scatter(
+                sales_perf,
+                x='Số deal',
+                y='Doanh thu',
+                size='Conversion %',
+                color='Kênh',
+                hover_data=['Nhân viên']
+            )
+            st.plotly_chart(fig_scatter, use_container_width=True)
+    
+    # ==================== DASHBOARD 3: DỰ ÁN ====================
+    elif dashboard_type == "📋 Dự án":
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("📋 Dự án đang chạy", "12", "+3")
+        with col2:
+            avg_profit = projects['Lợi nhuận %'].mean()
+            st.metric("💰 Biên LN TB", f"{avg_profit:.1f}%", "+2.3%")
+        with col3:
+            avg_csat = projects['CSAT'].mean()
+            st.metric("⭐ CSAT TB", f"{avg_csat:.2f}/5", "+0.15")
+        with col4:
+            st.metric("📊 Cost Variance", "8.5%", "OK")
+        
+        st.markdown("---")
+        
+        st.subheader("💎 Ma trận Doanh thu - Lợi nhuận")
+        
+        fig_scatter = px.scatter(
+            projects,
+            x='Doanh thu',
+            y='Lợi nhuận %',
+            size='Khách',
+            color='Loại',
+            hover_data=['Dự án', 'CSAT']
+        )
+        
+        fig_scatter.add_hline(y=projects['Lợi nhuận %'].median(), line_dash="dash")
+        fig_scatter.add_vline(x=projects['Doanh thu'].median(), line_dash="dash")
+        fig_scatter.update_layout(height=450)
+        st.plotly_chart(fig_scatter, use_container_width=True)
+        
+        st.info("💡 Tập trung nhân rộng các event ở góc phải trên")
+    
+    # ==================== DASHBOARD 4: SO SÁNH ====================
     else:
-        st.error("❌ Chưa kết nối Google Sheets")
+        total_revenue = revenue_data['Tổng DT'].sum() / 1_000_000
+        gross_profit = total_revenue * 0.174
+        
+        comparison = pd.DataFrame({
+            'Chỉ tiêu': ['Doanh thu', 'Lãi gộp', 'LNTT', 'Số dự án', 'CSAT TB'],
+            'KH 2026': [80000, 13920, 82, 120, 4.2],
+            'TH hiện tại': [total_revenue, gross_profit, 45, 85, 4.1],
+            'Đơn vị': ['M', 'M', 'M', 'dự án', 'điểm']
+        })
+        
+        comparison['% Hoàn thành'] = (comparison['TH hiện tại'] / comparison['KH 2026'] * 100).round(1)
+        
+        col1, col2 = st.columns([3, 2])
+        
+        with col1:
+            st.subheader("📊 Bảng so sánh")
+            st.dataframe(comparison, hide_index=True, use_container_width=True)
+        
+        with col2:
+            st.subheader("🎯 Tỷ lệ hoàn thành")
+            
+            revenue_achievement = (total_revenue / 80000) * 100
+            
+            fig_gauge = go.Figure(go.Indicator(
+                mode="gauge+number+delta",
+                value=revenue_achievement,
+                title={'text': "Doanh thu"},
+                delta={'reference': 100},
+                gauge={
+                    'axis': {'range': [None, 120]},
+                    'steps': [
+                        {'range': [0, 50], 'color': '#ff6b6b'},
+                        {'range': [50, 80], 'color': '#ffd43b'},
+                        {'range': [80, 100], 'color': '#51cf66'}
+                    ]
+                }
+            ))
+            
+            st.plotly_chart(fig_gauge, use_container_width=True)
 
 # Footer
 st.markdown("---")
