@@ -192,7 +192,7 @@ if client:
                 with col2:
                     guests = st.number_input("Số khách:", min_value=0, step=10, format="%d")
                     event_type = st.selectbox("Loại sự kiện:", ["Teambuilding", "Gala", "Conference", "Festival", "Year End Party", "Khác"])
-                    csat = st.slider("CSAT:", min_value=1.0, max_value=5.0, step=0.1, value=4.0)
+                    csat = st.slider("CSAT:", min_value=0.0, max_value=5.0, value=4.0, step=0.1)
                 
                 submitted = st.form_submit_button("💾 Lưu dự án", type="primary")
                 
