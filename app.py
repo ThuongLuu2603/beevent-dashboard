@@ -849,8 +849,9 @@ elif page == "📅 Timeline Dự án":
                     <!-- Header -->
                     <div class="gantt-header">
                         <div class="gantt-header-cell" style="text-align: left; padding-left: 16px;"><b>Tên task</b></div>
-                """.format(days=days_in_month)
-                
+                f"""
+                grid-template-columns: 250px repeat({days_in_month}, 40px);
+                """
                 # Add day headers
                 for day in calendar_days:
                     weekend_class = "weekend" if day.weekday() >= 5 else ""
