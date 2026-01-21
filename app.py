@@ -39,7 +39,6 @@ SHEET_ID = "1xSvsEPHV1MzHa9UumzJtyzAY4LXaiSVKb8tmMcUZPeM"
 def init_gsheet_connection():
     """Initialize Google Sheets connection"""
     try:
-        # Lấy credentials từ Streamlit secrets
         credentials_dict = st.secrets["gcp_service_account"]
         
         scopes = [
@@ -58,14 +57,13 @@ def init_gsheet_connection():
         st.error(f"❌ Lỗi kết nối Google Sheets: {str(e)}")
         return None
 
-@st.cache_data(ttl=60)  # Cache 1 phút
 @st.cache_data(ttl=60)
 def load_data_from_sheets(_client):
     """Load all data from Google Sheets"""
     try:
         spreadsheet = _client.open_by_key(SHEET_ID)
         
-        # ✅ LOAD REVENUE DATA VỚI CÁC CỘT MỚI
+        # ✅ LOAD REVENUE DATA
         try:
             revenue_sheet = spreadsheet.worksheet('revenue_monthly')
             revenue_records = revenue_sheet.get_all_records()
@@ -73,20 +71,18 @@ def load_data_from_sheets(_client):
                 revenue_data = pd.DataFrame(revenue_records)
                 revenue_data['Tháng'] = pd.to_datetime(revenue_data['Tháng'])
                 
-                # ✅ KIỂM TRA XEM CÓ CỘT MỚI CHƯA
+                # Kiểm tra và tính toán các cột nếu chưa có
                 if 'Tổng doanh thu' not in revenue_data.columns:
-                    # Tính tổng nếu chưa có
                     revenue_data['Tổng doanh thu'] = revenue_data['Nội bộ'] + revenue_data['Gov-Hiệp hội'] + revenue_data['Corporate']
                 
                 if 'COGS' not in revenue_data.columns:
-                    # Tính mặc định nếu chưa có (backward compatibility)
                     revenue_data['COGS'] = revenue_data['Tổng doanh thu'] * 0.826
                 
                 if 'Lãi gộp' not in revenue_data.columns:
                     revenue_data['Lãi gộp'] = revenue_data['Tổng doanh thu'] - revenue_data['COGS']
                 
                 if 'Tỷ lệ lãi gộp (%)' not in revenue_data.columns:
-                    revenue_data['Tỷ lệ lãi gộp (%)'] = (revenue_data['Lãi gộp'] / revenue_data['Tổng doanh thu'] * 100)
+                    revenue_data['Tỷ lệ lãi gộp (%)'] = (revenue_data['Lãi gộp'] / revenue_data['Tổng doanh thu'] * 100).fillna(0)
                 
                 if 'Chi phí gián tiếp' not in revenue_data.columns:
                     revenue_data['Chi phí gián tiếp'] = revenue_data['Lãi gộp'] * 0.95
@@ -95,13 +91,36 @@ def load_data_from_sheets(_client):
                     revenue_data['Lợi nhuận ròng'] = revenue_data['Lãi gộp'] - revenue_data['Chi phí gián tiếp']
                 
                 if 'Tỷ lệ lợi nhuận (%)' not in revenue_data.columns:
-                    revenue_data['Tỷ lệ lợi nhuận (%)'] = (revenue_data['Lợi nhuận ròng'] / revenue_data['Tổng doanh thu'] * 100)
+                    revenue_data['Tỷ lệ lợi nhuận (%)'] = (revenue_data['Lợi nhuận ròng'] / revenue_data['Tổng doanh thu'] * 100).fillna(0)
             else:
                 revenue_data = pd.DataFrame(columns=['Tháng', 'Nội bộ', 'Gov-Hiệp hội', 'Corporate', 'Tổng doanh thu', 'COGS', 'Lãi gộp', 'Tỷ lệ lãi gộp (%)', 'Chi phí gián tiếp', 'Lợi nhuận ròng', 'Tỷ lệ lợi nhuận (%)'])
-        except:
+        except Exception as e:
+            st.warning(f"⚠️ Lỗi load revenue: {str(e)}")
             revenue_data = pd.DataFrame(columns=['Tháng', 'Nội bộ', 'Gov-Hiệp hội', 'Corporate', 'Tổng doanh thu', 'COGS', 'Lãi gộp', 'Tỷ lệ lãi gộp (%)', 'Chi phí gián tiếp', 'Lợi nhuận ròng', 'Tỷ lệ lợi nhuận (%)'])
         
-        # ... (phần load pipeline, projects, sales_perf giữ nguyên)
+        # Load pipeline data
+        try:
+            pipeline_sheet = spreadsheet.worksheet('sales_pipeline')
+            pipeline_records = pipeline_sheet.get_all_records()
+            pipeline_data = pd.DataFrame(pipeline_records) if pipeline_records else pd.DataFrame(columns=['Stage', 'Count', 'Value'])
+        except:
+            pipeline_data = pd.DataFrame(columns=['Stage', 'Count', 'Value'])
+        
+        # Load projects data
+        try:
+            projects_sheet = spreadsheet.worksheet('projects')
+            projects_records = projects_sheet.get_all_records()
+            projects = pd.DataFrame(projects_records) if projects_records else pd.DataFrame(columns=['Dự án', 'Doanh thu', 'Lợi nhuận %', 'Khách', 'Loại', 'CSAT'])
+        except:
+            projects = pd.DataFrame(columns=['Dự án', 'Doanh thu', 'Lợi nhuận %', 'Khách', 'Loại', 'CSAT'])
+        
+        # Load sales performance
+        try:
+            sales_sheet = spreadsheet.worksheet('sales_performance')
+            sales_records = sales_sheet.get_all_records()
+            sales_perf = pd.DataFrame(sales_records) if sales_records else pd.DataFrame(columns=['Nhân viên', 'Doanh thu', 'Số deal', 'Conversion %', 'Kênh'])
+        except:
+            sales_perf = pd.DataFrame(columns=['Nhân viên', 'Doanh thu', 'Số deal', 'Conversion %', 'Kênh'])
         
         return revenue_data, pipeline_data, projects, sales_perf
     
@@ -152,53 +171,53 @@ if client:
         st.sidebar.info("💡 **Mục tiêu 2026**\n- Doanh thu: 80 tỷ\n- Lãi gộp: 13.92 tỷ\n- LNTT: Hòa vốn")
         
         # ==================== DASHBOARD 1: CEO/CCO ====================
-    if dashboard_type == "🎯 CEO/CCO - Tổng quan":
-        st.markdown('<div class="main-header">🎯 DASHBOARD CEO/CCO - TỔNG QUAN CHIẾN LƯỢC</div>', unsafe_allow_html=True)
-        
-        # KPI Cards
-        col1, col2, col3, col4 = st.columns(4)
-        
-        if len(revenue_data) > 0:
-            # ✅ LẤY DỮ LIỆU THỰC TỪ SHEET
-            total_revenue = revenue_data['Tổng doanh thu'].sum() / 1_000_000
-            total_cogs = revenue_data['COGS'].sum() / 1_000_000
-            total_gross_profit = revenue_data['Lãi gộp'].sum() / 1_000_000
-            avg_gross_margin = revenue_data['Tỷ lệ lãi gộp (%)'].mean()
-            total_operating_cost = revenue_data['Chi phí gián tiếp'].sum() / 1_000_000
-            total_net_profit = revenue_data['Lợi nhuận ròng'].sum() / 1_000_000
-            avg_net_margin = revenue_data['Tỷ lệ lợi nhuận (%)'].mean()
+        if dashboard_type == "🎯 CEO/CCO - Tổng quan":
+            st.markdown('<div class="main-header">🎯 DASHBOARD CEO/CCO - TỔNG QUAN CHIẾN LƯỢC</div>', unsafe_allow_html=True)
             
-            target_revenue = 80_000
-            revenue_achievement = (total_revenue / target_revenue) * 100
+            # KPI Cards
+            col1, col2, col3, col4 = st.columns(4)
             
-            with col1:
-                st.metric(
-                    "💰 Doanh thu tích lũy",
-                    f"{total_revenue:,.0f}M",
-                    f"{revenue_achievement:.1f}% target"
-                )
-            
-            with col2:
-                st.metric(
-                    "📊 Lãi gộp",
-                    f"{total_gross_profit:,.0f}M",
-                    f"{avg_gross_margin:.1f}%"
-                )
-            
-            with col3:
-                st.metric(
-                    "💸 Chi phí gián tiếp",
-                    f"{total_operating_cost:,.0f}M"
-                )
-            
-            with col4:
-                color = "normal" if total_net_profit >= 0 else "inverse"
-                st.metric(
-                    "🎯 Lợi nhuận ròng",
-                    f"{total_net_profit:,.0f}M",
-                    f"{avg_net_margin:.1f}%",
-                    delta_color=color
-                )
+            if len(revenue_data) > 0:
+                # ✅ LẤY DỮ LIỆU THỰC TỪ SHEET
+                total_revenue = revenue_data['Tổng doanh thu'].sum() / 1_000_000
+                total_cogs = revenue_data['COGS'].sum() / 1_000_000
+                total_gross_profit = revenue_data['Lãi gộp'].sum() / 1_000_000
+                avg_gross_margin = revenue_data['Tỷ lệ lãi gộp (%)'].mean()
+                total_operating_cost = revenue_data['Chi phí gián tiếp'].sum() / 1_000_000
+                total_net_profit = revenue_data['Lợi nhuận ròng'].sum() / 1_000_000
+                avg_net_margin = revenue_data['Tỷ lệ lợi nhuận (%)'].mean()
+                
+                target_revenue = 80_000
+                revenue_achievement = (total_revenue / target_revenue) * 100
+                
+                with col1:
+                    st.metric(
+                        "💰 Doanh thu tích lũy",
+                        f"{total_revenue:,.0f}M",
+                        f"{revenue_achievement:.1f}% target"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "📊 Lãi gộp",
+                        f"{total_gross_profit:,.0f}M",
+                        f"{avg_gross_margin:.1f}%"
+                    )
+                
+                with col3:
+                    st.metric(
+                        "💸 Chi phí gián tiếp",
+                        f"{total_operating_cost:,.0f}M"
+                    )
+                
+                with col4:
+                    color = "normal" if total_net_profit >= 0 else "inverse"
+                    st.metric(
+                        "🎯 Lợi nhuận ròng",
+                        f"{total_net_profit:,.0f}M",
+                        f"{avg_net_margin:.1f}%",
+                        delta_color=color
+                    )
             else:
                 st.warning("⚠️ Chưa có dữ liệu doanh thu. Vui lòng nhập dữ liệu vào Google Sheet.")
             
@@ -240,25 +259,25 @@ if client:
                     
                     st.plotly_chart(fig_revenue, use_container_width=True)
                 
-            with col2:
-                st.subheader("💧 Biên lợi nhuận")
-                
-                # ✅ DÙNG DỮ LIỆU THỰC
-                fig_waterfall = go.Figure(go.Waterfall(
-                    orientation="v",
-                    measure=["relative", "relative", "total", "relative", "total"],
-                    x=["Doanh thu", "COGS", "Lãi gộp", "Chi phí VH", "LNTT"],
-                    y=[total_revenue, -total_cogs, 0, -total_operating_cost, 0],
-                    text=[f"{total_revenue:,.0f}M", f"{-total_cogs:,.0f}M", f"{total_gross_profit:,.0f}M", 
-                          f"{-total_operating_cost:,.0f}M", f"{total_net_profit:,.0f}M"],
-                    textposition="outside",
-                    decreasing={"marker": {"color": "#ff6b6b"}},
-                    increasing={"marker": {"color": "#51cf66"}},
-                    totals={"marker": {"color": "#1f77b4"}}
-                ))
-                
-                fig_waterfall.update_layout(height=400, showlegend=False)
-                st.plotly_chart(fig_waterfall, use_container_width=True)
+                with col2:
+                    st.subheader("💧 Biên lợi nhuận")
+                    
+                    # ✅ DÙNG DỮ LIỆU THỰC
+                    fig_waterfall = go.Figure(go.Waterfall(
+                        orientation="v",
+                        measure=["relative", "relative", "total", "relative", "total"],
+                        x=["Doanh thu", "COGS", "Lãi gộp", "Chi phí VH", "LNTT"],
+                        y=[total_revenue, -total_cogs, 0, -total_operating_cost, 0],
+                        text=[f"{total_revenue:,.0f}M", f"{-total_cogs:,.0f}M", f"{total_gross_profit:,.0f}M", 
+                              f"{-total_operating_cost:,.0f}M", f"{total_net_profit:,.0f}M"],
+                        textposition="outside",
+                        decreasing={"marker": {"color": "#ff6b6b"}},
+                        increasing={"marker": {"color": "#51cf66"}},
+                        totals={"marker": {"color": "#1f77b4"}}
+                    ))
+                    
+                    fig_waterfall.update_layout(height=400, showlegend=False)
+                    st.plotly_chart(fig_waterfall, use_container_width=True)
             
             st.markdown("---")
             
@@ -289,7 +308,7 @@ if client:
                 st.subheader("🥧 Cơ cấu khách hàng")
                 
                 if len(revenue_data) > 0:
-                    internal_pct = (revenue_data['Nội bộ'].sum() / revenue_data['Tổng DT'].sum() * 100)
+                    internal_pct = (revenue_data['Nội bộ'].sum() / revenue_data['Tổng doanh thu'].sum() * 100)
                     external_pct = 100 - internal_pct
                     
                     fig_donut = go.Figure(data=[go.Pie(
@@ -459,14 +478,15 @@ if client:
             st.markdown('<div class="main-header">📈 SO SÁNH KẾ HOẠCH VS THỰC TẾ</div>', unsafe_allow_html=True)
             
             if len(revenue_data) > 0:
-                total_revenue = revenue_data['Tổng DT'].sum() / 1_000_000
-                gross_profit = total_revenue * 0.174
+                total_revenue = revenue_data['Tổng doanh thu'].sum() / 1_000_000
+                gross_profit = revenue_data['Lãi gộp'].sum() / 1_000_000
+                net_profit = revenue_data['Lợi nhuận ròng'].sum() / 1_000_000
                 avg_csat = projects['CSAT'].mean() if len(projects) > 0 else 0
                 
                 comparison = pd.DataFrame({
                     'Chỉ tiêu': ['Doanh thu', 'Lãi gộp', 'LNTT', 'Số dự án', 'CSAT TB'],
                     'KH 2026': [80000, 13920, 82, 120, 4.2],
-                    'TH hiện tại': [total_revenue, gross_profit, 45, len(projects), avg_csat],
+                    'TH hiện tại': [total_revenue, gross_profit, net_profit, len(projects), avg_csat],
                     'Đơn vị': ['M', 'M', 'M', 'dự án', 'điểm']
                 })
                 
@@ -513,7 +533,7 @@ if client:
                 monthly_comparison = pd.DataFrame({
                     'Tháng': revenue_data['Tháng'],
                     'KH tích lũy': [target_revenue/12 * (i+1) for i in range(len(revenue_data))],
-                    'TH tích lũy': (revenue_data['Tổng DT'].cumsum() / 1_000_000).tolist()
+                    'TH tích lũy': (revenue_data['Tổng doanh thu'].cumsum() / 1_000_000).tolist()
                 })
                 
                 fig_trend = go.Figure()
